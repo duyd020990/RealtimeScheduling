@@ -1,0 +1,8 @@
+﻿  DataGenerator.cpp
+c:\users\duyd\onedrive\study\doctor thesis\simulator\datagen\datagenerator\datagenerator\datagenerator.cpp(95): warning C4244: '=': conversion from 'double' to 'int', possible loss of data
+c:\users\duyd\onedrive\study\doctor thesis\simulator\datagen\datagenerator\datagenerator\datagenerator.cpp(179): warning C4129: '#': unrecognized character escape sequence
+c:\users\duyd\onedrive\study\doctor thesis\simulator\datagen\datagenerator\datagenerator\datagenerator.cpp(180): warning C4129: '#': unrecognized character escape sequence
+c:\users\duyd\onedrive\study\doctor thesis\simulator\datagen\datagenerator\datagenerator\datagenerator.cpp(283): warning C4996: 'getch': The POSIX name for this item is deprecated. Instead, use the ISO C and C++ conformant name: _getch. See online help for details.
+  c:\program files (x86)\windows kits\10\include\10.0.15063.0\ucrt\conio.h(452): note: see declaration of 'getch'
+  DataGenerator.vcxproj -> C:\Users\duyd\OneDrive\Study\Doctor Thesis\Simulator\DataGen\DataGenerator\Debug\DataGenerator.exe
+  DataGenerator.vcxproj -> C:\Users\duyd\OneDrive\Study\Doctor Thesis\Simulator\DataGen\DataGenerator\Debug\DataGenerator.pdb (Partial PDB)
