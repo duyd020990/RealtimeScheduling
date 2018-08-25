@@ -1,6 +1,8 @@
 #ifndef ILSF_H
 #define ILSF_H
 
+#define ILSF
+
 #include "Schedule.h"
 
 #define THRESHOLD 2

@@ -6,31 +6,33 @@
 
 #include "Schedule.h"
 
-#include "RM.h"
-#include "LSF.h"
-#include "EDF.h"
+//#include "RM.h"
+//#include "LSF.h"
+//#include "EDF.h"
 #include "LLREF.h"
 
 //#define AP_ALSO
 
-#if LSF == 1
+#ifdef LSF
 unsigned long long migration;
 extern SCHEDULING_ALGORITHM LSF_sa;
 #endif
 
-#if RM == 1
+#ifdef RM
 extern SCHEDULING_ALGORITHM RM_sa;
 #endif
 
-#if EDF == 1
+#ifdef EDF
 extern SCHEDULING_ALGORITHM EDF_sa;
 #endif
 
-#if LLREF == 1
+#ifdef LLREF
 extern int release_time[TICKS];
 extern int assign_history[MAX_TASKS];
+extern unsigned long long time_interval;
 extern SCHEDULING_ALGORITHM LLREF_sa;
 extern LLREF_LRECT* lrect_queue;
+int a;
 #endif
 
 /***********************************************************************************************************/
@@ -94,7 +96,7 @@ int main ( int argc, char *argv[] )
     unsigned           task_id, task_wcet, task_et, prev_task_id=MAX_TASKS;
     unsigned long long task_period, task_req_tim;
 
-#if LLREF == 1
+#ifdef LLREF
     memset(release_time,0,sizeof(int)*TICKS);
 #endif
 
@@ -153,7 +155,7 @@ int main ( int argc, char *argv[] )
         wcet[task_id]                        = task_wcet;
         et[task_id][inst_no[task_id]]        = task_wcet;    /* At the moment, WCET is set for periodic tasks */
         req_tim[task_id][inst_no[task_id]++] = task_req_tim;
-#if LLREF == 1
+#ifdef LLREF
         release_time[task_req_tim]=1;
 #endif
         if ( task_id != prev_task_id ) 
@@ -213,7 +215,8 @@ int main ( int argc, char *argv[] )
 /****************************************************************************************************************/
 /* RM                                                                                                          */
 /****************************************************************************************************************/
-#if RM == 1
+#ifdef RM
+    a=0;
     run_simulation("RM",RM_sa);
   
     printf ( ", %lf", aperiodic_response_time );
@@ -225,7 +228,7 @@ int main ( int argc, char *argv[] )
 
 
 #else
-    printf ( ", ", aperiodic_response_time );
+    printf ( ", ");
 
     fprintf ( ovhd_dl_max_fp, "," );
     fprintf ( ovhd_dl_total_fp, "," );
@@ -234,8 +237,8 @@ int main ( int argc, char *argv[] )
 
 #endif
 
-#if LSF == 1
-    
+#ifdef LSF
+    a=0;
     run_simulation("LSF",LSF_sa);
     
     printf ( ", %lf", aperiodic_response_time );
@@ -256,8 +259,8 @@ int main ( int argc, char *argv[] )
 
 #endif
 
-#if EDF == 1
-    
+#ifdef EDF
+    a=0;
     run_simulation("EDF",EDF_sa);
 
     printf ( ", %lf", aperiodic_response_time );
@@ -275,7 +278,24 @@ int main ( int argc, char *argv[] )
     fprintf ( ovhd_al_total_fp, "," );
 #endif
 
+#ifdef LLREF
+    a=1;
+    run_simulation("LLREF",LLREF_sa);
 
+    printf ( ", %lf", aperiodic_response_time );
+  
+    fprintf ( ovhd_dl_max_fp,   ", %llu", overhead_dl_max );
+    fprintf ( ovhd_dl_total_fp, ", %llu", overhead_dl_total );
+    fprintf ( ovhd_al_max_fp,   ", %llu", overhead_alpha_max );
+    fprintf ( ovhd_al_total_fp, ", %llu", overhead_alpha_total );
+#else    
+    printf ( ", ");
+
+    fprintf ( ovhd_dl_max_fp  , "," );
+    fprintf ( ovhd_dl_total_fp, "," );
+    fprintf ( ovhd_al_max_fp  , "," );
+    fprintf ( ovhd_al_total_fp, "," );
+#endif
 
     fclose ( ovhd_dl_max_fp );
     fclose ( ovhd_dl_total_fp );
@@ -299,14 +319,14 @@ void run_simulation(char* s,SCHEDULING_ALGORITHM sa)
     }
     scheduling = (void (*)())sa.scheduling;
     reorganize_function = (void (*)(TCB**))sa.reorganize_function;
-
+    
     Initialize ();
 
     for ( tick = 0; tick < TICKS; ) 
     {
+
         for ( i = 0; i < MAX_TASKS; i++ ) 
         {
-
             if ( req_tim[i][inst_no[i]] == tick ) 
             {
                 entry = entry_set ( i );
@@ -332,11 +352,10 @@ void run_simulation(char* s,SCHEDULING_ALGORITHM sa)
         if ( ap_ready_queue == NULL && fifo_ready_queue != NULL ) 
         {
             from_fifo_to_ap ();
-        }
-                
+        }  
+        
         /* Scheduling */
         scheduling();
-
         /* Tick increment/et decrement and Setting last_empty & used_dl*/
         Tick_inc ();
         for(processor_id=0;processor_id<PROCESSOR_NUM;processor_id++)
@@ -344,7 +363,7 @@ void run_simulation(char* s,SCHEDULING_ALGORITHM sa)
             if ( _kernel_runtsk[processor_id] != NULL ) 
             {
                 if ( _kernel_runtsk[processor_id] -> et == 0 ) 
-                {
+                {   
                     Job_exit ( s, 1 ,processor_id);
                 }
             }
@@ -494,8 +513,9 @@ void Initialize ( void )
     ap_ready_queue   = NULL;
     fifo_ready_queue = NULL;
 
-#if LLREF == 1
+#ifdef LLREF
     lrect_queue      = NULL;
+    time_interval    = 0;
     for(i=0;i<MAX_TASKS;i++)
     {
         assign_history[i] = -1;
@@ -544,15 +564,12 @@ TCB *entry_set ( int i)
     return entry;
 }
 
-
-
 void Tick_inc ( )
 {
-    int i,active=0;
-    
+    int i;
+
     for(i=0;i<PROCESSOR_NUM;i++)
     {
-     
         if ( _kernel_runtsk[i] == NULL )
         {
             last_empty[i] = tick;
@@ -564,14 +581,13 @@ void Tick_inc ( )
       
         Overhead_Record ( );
     }
-
+    
     tick++;
 
     for(i=0;i<PROCESSOR_NUM;i++)
     {
         if ( _kernel_runtsk[i] != NULL ) 
         {
-            active++;
             --(_kernel_runtsk[i] -> et);
             --(_kernel_runtsk[i] -> pet);
         }   

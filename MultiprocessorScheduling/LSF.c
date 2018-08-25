@@ -3,6 +3,8 @@
 #include <stdio.h>
 #include <string.h>
 
+#define LSF
+
 #include "Schedule.h"
 
 extern unsigned long long tick;

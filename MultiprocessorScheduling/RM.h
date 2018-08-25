@@ -1,6 +1,8 @@
 #ifndef RM_H
 #define RM_H
 
+#define RM
+
 #include "Schedule.h"
 
 int RM_insert_OK();

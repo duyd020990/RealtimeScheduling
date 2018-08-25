@@ -1,11 +1,13 @@
 #ifndef LLREF_H
 #define LLREF_H
 
+#define LLREF
+
 #include "Schedule.h"
 
 typedef struct llref_lrect
 {
-    unsigned long long local_remaining_execution_time;
+    double local_remaining_execution_time;
     TCB* tcb;
     struct llref_lrect* next;
 }LLREF_LRECT;

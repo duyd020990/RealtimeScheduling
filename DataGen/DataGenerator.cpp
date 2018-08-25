@@ -308,6 +308,5 @@ int main(int argc,char** argv)
 	//}
 
 	cout << "end!" << endl;
-	system("pause");
 	return 0;
 }

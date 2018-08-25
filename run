@@ -47,23 +47,20 @@ do
 	echo "******** Periodic Tasks: $I % ********" >> ovhd_al_max.csv
 	echo "******** Periodic Tasks: $I % ********" >> ovhd_al_total.csv
 	
-	J=0
-	while [  $J -ne 10 ]
-	do
-		X=0
-		while  [ $X -ne 10 ]
-		do
-			X=`expr $X + 1`
-			cp -p ./Periodic_Task_Sets/periodic.cfg.${I}-${X} ./periodic.cfg
-			./Schedule >> results.csv
-		done
-		echo "Average,=AVERAGE(R[-10]C[0]:R[-1]C[0]),=AVERAGE(R[-10]C[0]:R[-1]C[0]),=AVERAGE(R[-10]C[0]:R[-1]C[0]),=AVERAGE(R[-10]C[0]:R[-1]C[0]),=AVERAGE(R[-10]C[0]:R[-1]C[0]),=AVERAGE(R[-10]C[0]:R[-1]C[0]),=AVERAGE(R[-10]C[0]:R[-1]C[0])" >> results.csv
-		echo "Average,=AVERAGE(R[-10]C[0]:R[-1]C[0]),=AVERAGE(R[-10]C[0]:R[-1]C[0]),=AVERAGE(R[-10]C[0]:R[-1]C[0]),=AVERAGE(R[-10]C[0]:R[-1]C[0]),=AVERAGE(R[-10]C[0]:R[-1]C[0]),=AVERAGE(R[-10]C[0]:R[-1]C[0]),=AVERAGE(R[-10]C[0]:R[-1]C[0])" >> ovhd_dl_max.csv
-		echo "Average,=AVERAGE(R[-10]C[0]:R[-1]C[0]),=AVERAGE(R[-10]C[0]:R[-1]C[0]),=AVERAGE(R[-10]C[0]:R[-1]C[0]),=AVERAGE(R[-10]C[0]:R[-1]C[0]),=AVERAGE(R[-10]C[0]:R[-1]C[0]),=AVERAGE(R[-10]C[0]:R[-1]C[0]),=AVERAGE(R[-10]C[0]:R[-1]C[0])" >> ovhd_dl_total.csv
-		echo "Average,=AVERAGE(R[-10]C[0]:R[-1]C[0]),=AVERAGE(R[-10]C[0]:R[-1]C[0]),=AVERAGE(R[-10]C[0]:R[-1]C[0]),=AVERAGE(R[-10]C[0]:R[-1]C[0]),=AVERAGE(R[-10]C[0]:R[-1]C[0]),=AVERAGE(R[-10]C[0]:R[-1]C[0]),=AVERAGE(R[-10]C[0]:R[-1]C[0])" >> ovhd_al_max.csv
-		echo "Average,=AVERAGE(R[-10]C[0]:R[-1]C[0]),=AVERAGE(R[-10]C[0]:R[-1]C[0]),=AVERAGE(R[-10]C[0]:R[-1]C[0]),=AVERAGE(R[-10]C[0]:R[-1]C[0]),=AVERAGE(R[-10]C[0]:R[-1]C[0]),=AVERAGE(R[-10]C[0]:R[-1]C[0]),=AVERAGE(R[-10]C[0]:R[-1]C[0])" >> ovhd_al_total.csv
 
+	X=0
+	while  [ $X -ne 10 ]
+	do
+		X=`expr $X + 1`
+		cp -p ./periodic.cfg.${I}-${X} ./periodic.cfg
+		./Schedule >> results.csv
 	done
+	echo "Average,=AVERAGE(R[-10]C[0]:R[-1]C[0]),=AVERAGE(R[-10]C[0]:R[-1]C[0]),=AVERAGE(R[-10]C[0]:R[-1]C[0]),=AVERAGE(R[-10]C[0]:R[-1]C[0]),=AVERAGE(R[-10]C[0]:R[-1]C[0]),=AVERAGE(R[-10]C[0]:R[-1]C[0]),=AVERAGE(R[-10]C[0]:R[-1]C[0])" >> results.csv
+	echo "Average,=AVERAGE(R[-10]C[0]:R[-1]C[0]),=AVERAGE(R[-10]C[0]:R[-1]C[0]),=AVERAGE(R[-10]C[0]:R[-1]C[0]),=AVERAGE(R[-10]C[0]:R[-1]C[0]),=AVERAGE(R[-10]C[0]:R[-1]C[0]),=AVERAGE(R[-10]C[0]:R[-1]C[0]),=AVERAGE(R[-10]C[0]:R[-1]C[0])" >> ovhd_dl_max.csv
+	echo "Average,=AVERAGE(R[-10]C[0]:R[-1]C[0]),=AVERAGE(R[-10]C[0]:R[-1]C[0]),=AVERAGE(R[-10]C[0]:R[-1]C[0]),=AVERAGE(R[-10]C[0]:R[-1]C[0]),=AVERAGE(R[-10]C[0]:R[-1]C[0]),=AVERAGE(R[-10]C[0]:R[-1]C[0]),=AVERAGE(R[-10]C[0]:R[-1]C[0])" >> ovhd_dl_total.csv
+	echo "Average,=AVERAGE(R[-10]C[0]:R[-1]C[0]),=AVERAGE(R[-10]C[0]:R[-1]C[0]),=AVERAGE(R[-10]C[0]:R[-1]C[0]),=AVERAGE(R[-10]C[0]:R[-1]C[0]),=AVERAGE(R[-10]C[0]:R[-1]C[0]),=AVERAGE(R[-10]C[0]:R[-1]C[0]),=AVERAGE(R[-10]C[0]:R[-1]C[0])" >> ovhd_al_max.csv
+	echo "Average,=AVERAGE(R[-10]C[0]:R[-1]C[0]),=AVERAGE(R[-10]C[0]:R[-1]C[0]),=AVERAGE(R[-10]C[0]:R[-1]C[0]),=AVERAGE(R[-10]C[0]:R[-1]C[0]),=AVERAGE(R[-10]C[0]:R[-1]C[0]),=AVERAGE(R[-10]C[0]:R[-1]C[0]),=AVERAGE(R[-10]C[0]:R[-1]C[0])" >> ovhd_al_total.csv
+
 
 	echo "$I%,\"=AVERAGE(R[-1]C,R[-15]C,R[-29]C,R[-43]C,R[-57]C,R[-71]C,R[-85]C,R[-99]C,R[-113]C,R[-127]C)\",\"=AVERAGE(R[-1]C,R[-15]C,R[-29]C,R[-43]C,R[-57]C,R[-71]C,R[-85]C,R[-99]C,R[-113]C,R[-127]C)\",\"=AVERAGE(R[-1]C,R[-15]C,R[-29]C,R[-43]C,R[-57]C,R[-71]C,R[-85]C,R[-99]C,R[-113]C,R[-127]C)\",\"=AVERAGE(R[-1]C,R[-15]C,R[-29]C,R[-43]C,R[-57]C,R[-71]C,R[-85]C,R[-99]C,R[-113]C,R[-127]C)\",\"=AVERAGE(R[-1]C,R[-15]C,R[-29]C,R[-43]C,R[-57]C,R[-71]C,R[-85]C,R[-99]C,R[-113]C,R[-127]C)\",\"=AVERAGE(R[-1]C,R[-15]C,R[-29]C,R[-43]C,R[-57]C,R[-71]C,R[-85]C,R[-99]C,R[-113]C,R[-127]C)\",\"=AVERAGE(R[-1]C,R[-15]C,R[-29]C,R[-43]C,R[-57]C,R[-71]C,R[-85]C,R[-99]C,R[-113]C,R[-127]C)\"" >> results.csv
 

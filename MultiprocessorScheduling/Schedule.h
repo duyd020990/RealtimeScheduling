@@ -1,10 +1,6 @@
 #ifndef SCHEDULE_H
 #define SCHEDULE_H
-
-/* SWITCH */
-#define EDF      1
-#define RM       1
-#define LSF      1    
+    
 
 /* Overhead Definition */
 #define FADD     4
@@ -19,7 +15,7 @@
 #define FLOOR    1
 #define MEM      1
 
-#define PROCESSOR_NUM   3
+#define PROCESSOR_NUM   4
 #define UTIL_UPPERBOUND (double)PROCESSOR_NUM
 
 /* General Definitions */

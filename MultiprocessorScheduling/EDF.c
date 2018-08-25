@@ -42,6 +42,7 @@ void EDF_reorganize_function(TCB** rq)
 
 void EDF_Scheduling()
 {
+    fprintf(stderr,"EDF\n");
     
     LSF_Scheduling();
 }
