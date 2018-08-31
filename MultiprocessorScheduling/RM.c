@@ -11,10 +11,16 @@ extern TCB* p_ready_queue;
 extern TCB* ap_ready_queue;
 
 SCHEDULING_ALGORITHM RM_sa={
-    .scheduling = RM_Scheduling,
-    .insert_OK  = RM_insert_OK,
-    .reorganize_function = RM_reorganize_function,
+    .scheduling_initialize = RM_scheduling_initialize,
+    .scheduling            = RM_Scheduling,
+    .insert_OK             = RM_insert_OK,
+    .reorganize_function   = RM_reorganize_function,
 };
+
+void RM_scheduling_initialize()
+{
+    return;
+}
 
 int RM_insert_OK(TCB* t1,TCB* t2)
 {

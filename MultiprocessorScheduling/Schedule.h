@@ -67,6 +67,7 @@ typedef struct tcb {
 
 typedef struct 
 {
+    void* scheduling_initialize;    
     void* scheduling;
     void* insert_OK;
     void* reorganize_function;

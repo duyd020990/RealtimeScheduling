@@ -22,12 +22,16 @@ TCB *running_queue[PROCESSOR_NUM]; // A running queue for each processor
 
 
 SCHEDULING_ALGORITHM RUN_sa = {
-    .scheduling          = RUN_schedule,
-    .insert_OK           = RUN_insert_OK,
-    .reorganize_function = RUN_reorganize_function
+    .scheduling_initialize = RUN_scheduling_initialize,
+    .scheduling            = RUN_schedule,
+    .insert_OK             = RUN_insert_OK,
+    .reorganize_function   = RUN_reorganize_function
 };
 
-
+void RUN_scheduling_initialize()
+{
+    return;
+}
 
 int RUN_insert_OK(TCB* t1,TCB* t2)
 {

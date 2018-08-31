@@ -13,10 +13,16 @@ extern TCB* ap_ready_queue;
 unsigned long long migration;
 
 SCHEDULING_ALGORITHM EDF_sa={
-    .scheduling = EDF_Scheduling,
-    .insert_OK  = EDF_insert_OK,
-    .reorganize_function = EDF_reorganize_function,
+    .scheduling_initialize = EDF_scheduling_initialize,
+    .scheduling            = EDF_Scheduling,
+    .insert_OK             = EDF_insert_OK,
+    .reorganize_function   = EDF_reorganize_function,
 };
+
+void EDF_scheduling_initialize()
+{
+    return;
+}
 
 int EDF_insert_OK(TCB* t1,TCB* t2)
 {

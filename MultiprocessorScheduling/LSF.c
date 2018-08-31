@@ -19,10 +19,16 @@ extern TCB* ap_ready_queue;
 unsigned long long migration;
 
 SCHEDULING_ALGORITHM LSF_sa={
-    .scheduling = LSF_Scheduling,
-    .insert_OK  = LSF_insert_OK,
-    .reorganize_function = LSF_reorganize_function,
+    .scheduling_initialize = LSF_scheduling_initialize,
+    .scheduling            = LSF_Scheduling,
+    .insert_OK             = LSF_insert_OK,
+    .reorganize_function   = LSF_reorganize_function,
 };
+
+void LSF_scheduling_initialize()
+{
+    return;
+}
 
 void LSF_swap(TCB *t1,TCB *t2)
 {

@@ -30,12 +30,7 @@ extern SCHEDULING_ALGORITHM EDF_sa;
 
 #ifdef LLREF
 extern int release_time[TICKS];
-extern int assign_history[MAX_TASKS];
-extern unsigned long long time_interval;
-extern unsigned long long rest_time_interval;
 extern SCHEDULING_ALGORITHM LLREF_sa;
-extern int LLREF_involke;
-int a;
 #endif
 
 /***********************************************************************************************************/
@@ -69,13 +64,6 @@ unsigned long long  di_1, fi_1;
 unsigned long long  max_used_dl;
 unsigned long long  used_dl[PROCESSOR_NUM][TICKS];
 unsigned            last_empty[PROCESSOR_NUM];                         /* 最後の空スロット番号                           */
-
-/* Variables for TB* / TB(n) */
-
-/* Variables for CBS */
-unsigned long long  cbs_d;
-unsigned            cbs_c;
-
 
 /* Variables for overheads estimation */
 unsigned long long overhead_dl, overhead_dl_max, overhead_dl_total;
@@ -220,7 +208,7 @@ int main ( int argc, char *argv[] )
 /* RM                                                                                                          */
 /****************************************************************************************************************/
 #ifdef RM
-    a=0;
+
     run_simulation("RM",RM_sa);
   
     printf ( ", %lf", aperiodic_response_time );
@@ -242,7 +230,7 @@ int main ( int argc, char *argv[] )
 #endif
 
 #ifdef LSF
-    a=0;
+
     run_simulation("LSF",LSF_sa);
     
     printf ( ", %lf", aperiodic_response_time );
@@ -264,7 +252,7 @@ int main ( int argc, char *argv[] )
 #endif
 
 #ifdef EDF
-    a=0;
+
     run_simulation("EDF",EDF_sa);
 
     printf ( ", %lf", aperiodic_response_time );
@@ -283,7 +271,7 @@ int main ( int argc, char *argv[] )
 #endif
 
 #ifdef LLREF
-    a=1;
+
     run_simulation("LLREF",LLREF_sa);
 
     printf ( ", %lf", aperiodic_response_time );
@@ -315,16 +303,19 @@ void run_simulation(char* s,SCHEDULING_ALGORITHM sa)
     int i,processor_id;
     void (*scheduling)() = NULL;
     void (*reorganize_function)(TCB**) = NULL;
+    void (*scheduling_initialize)() = NULL;
     TCB *entry;
 
-    if(sa.scheduling==NULL || sa.insert_OK==NULL || sa.reorganize_function==NULL)
+    if(sa.scheduling_initialize==NULL || sa.scheduling==NULL || sa.insert_OK==NULL || sa.reorganize_function==NULL)
     {
         return;
     }
+    scheduling_initialize = (void(*)())sa.scheduling_initialize;
     scheduling = (void (*)())sa.scheduling;
     reorganize_function = (void (*)(TCB**))sa.reorganize_function;
     
     Initialize ();
+    scheduling_initialize();
 
     for ( tick = 0; tick < TICKS; ) 
     {
@@ -513,16 +504,6 @@ void Initialize ( void )
     ap_ready_queue   = NULL;
     fifo_ready_queue = NULL;
 
-#ifdef LLREF
-    time_interval      = 0;
-    rest_time_interval = 0;
-    LLREF_involke      = 0;
-    for(i=0;i<MAX_TASKS;i++)
-    {
-        assign_history[i] = -1;
-    }
-#endif
-
     di_1 = 0;
     fi_1 = 0;
     for(j=0;j<PROCESSOR_NUM;j++)
@@ -537,9 +518,6 @@ void Initialize ( void )
         last_empty[i]  = 0;
     }
     max_used_dl = 0;
-
-    cbs_d = 0;
-    cbs_c = cbs_Q;
 
     overhead_dl = overhead_alpha = overhead_dl_max = overhead_alpha_max = overhead_dl_total = overhead_alpha_total = 0;
 

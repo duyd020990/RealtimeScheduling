@@ -33,9 +33,10 @@ int LLREF_involke;
 TCB *running_queue[PROCESSOR_NUM]; // A running queue for each processor
 
 SCHEDULING_ALGORITHM LLREF_sa={
-    .scheduling          = LLREF_scheduling,
-    .insert_OK           = LLREF_insert_OK,
-    .reorganize_function = LLREF_reorganize_function
+    .scheduling_initialize = LLREF_scheduling_initialize,
+    .scheduling            = LLREF_scheduling,
+    .insert_OK             = LLREF_insert_OK,
+    .reorganize_function   = LLREF_reorganize_function
 };
 
 unsigned long long next_release_time()
@@ -175,6 +176,26 @@ int LLREF_check_Second_Event(TCB** rq)
     return 0;
 }
 
+int LLREF_assign_history_check(TCB* tcb)
+{
+    if(tcb == NULL){return -1;}
+
+    return assign_history[tcb->tid];
+}
+
+void LLREF_scheduling_initialize()
+{
+    int i;
+    time_interval      = 0;
+    rest_time_interval = 0;
+    LLREF_involke      = 0;
+
+    for(i=0;i<MAX_TASKS;i++)
+    {
+        assign_history[i] = -1;
+    }   
+}
+
 void LLREF_reorganize_function(TCB** rq)
 {
     TCB* p = NULL;
@@ -250,17 +271,10 @@ void LLREF_reorganize_function(TCB** rq)
     }
 }
 
-
 int LLREF_insert_OK(TCB* t1,TCB* t2)
 {
-    return EDF_insert_OK(t1,t2);
-}
-
-int LLREF_assign_history_check(TCB* tcb)
-{
-    if(tcb == NULL){return -1;}
-
-    return assign_history[tcb->tid];
+    if(t1 == NULL){return 0;}
+    else{return 1;};
 }
 
 void LLREF_scheduling()

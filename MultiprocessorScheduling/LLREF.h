@@ -11,6 +11,8 @@ typedef struct llref_lrect
     unsigned r_wcet;
 }LLREF_LRECT;
 
+void LLREF_scheduling_initialize();
+
 void LLREF_scheduling();
 
 int LLREF_insert_OK(TCB*,TCB*);

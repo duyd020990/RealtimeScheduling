@@ -16,11 +16,16 @@ extern TCB* ap_ready_queue;
 unsigned long long migration;
 
 SCHEDULING_ALGORITHM ILSF_sa={
+    .scheduling_initialize = ILSF_scheduling_initialize,
     .scheduling = ILSF_Scheduling,
     .insert_OK  = ILSF_insert_OK,
     .reorganize_function = ILSF_reorganize_function,
 };
 
+void ILSF_scheduling_initialize()
+{
+    return;
+}
 
 void ILSF_swap(TCB *t1,TCB *t2)
 {

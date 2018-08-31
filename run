@@ -14,7 +14,7 @@ UAP_TASK_SET=TS-5
 #echo ",RM, TBS, TBS+VRA, ATBS, ATBS+VRA, TB*/TB(n), CBS" > ovhd_al_max.csv
 #echo ",RM, TBS, TBS+VRA, ATBS, ATBS+VRA, TB*/TB(n), CBS" > ovhd_al_total.csv
 
-#./DataGenerator 4 
+./DataGenerator 4 
 
 I=65
 while  [ $I -ne 95 ]
