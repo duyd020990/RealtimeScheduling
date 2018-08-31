@@ -55,13 +55,12 @@ typedef struct tcb {
     int                tid;
     int                inst_no;
     unsigned long long req_tim;
-    unsigned long long req_tim_advance;
     unsigned long long a_dl;
-    unsigned long long a_dl_TBS;
-    unsigned int       et;
-    unsigned int       initial_et;
-    unsigned int       pet;
-    unsigned int       priority;
+    unsigned           et;
+    unsigned           wcet;
+    unsigned           initial_et;
+    unsigned           priority;
+    void*              something_else;
     struct tcb         *next;
     struct tcb         *prev;
 } TCB;
@@ -79,7 +78,8 @@ typedef struct
 void   insert_queue ( TCB **rq, TCB *entry, void* function);
 void   insert_queue_RM ( TCB **rq, TCB *entry );
 void   insert_queue_fifo ( TCB **rq, TCB *entry );
-void   delete_queue ( TCB **rq,int tid );
+void   delete_queue(TCB** rq,TCB* tcb);
+//void   delete_queue ( TCB **rq,int tid );
 void   from_fifo_to_ap ( void );
 void   run_simulation(char* s,SCHEDULING_ALGORITHM sa);
 void   Initialize ( void );

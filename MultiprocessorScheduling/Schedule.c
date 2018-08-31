@@ -5,7 +5,9 @@
 #include <string.h>
 
 #include "Schedule.h"
+#include "signal.h"
 
+//Scehduling algorithms
 //#include "RM.h"
 //#include "LSF.h"
 //#include "EDF.h"
@@ -30,8 +32,9 @@ extern SCHEDULING_ALGORITHM EDF_sa;
 extern int release_time[TICKS];
 extern int assign_history[MAX_TASKS];
 extern unsigned long long time_interval;
+extern unsigned long long rest_time_interval;
 extern SCHEDULING_ALGORITHM LLREF_sa;
-extern LLREF_LRECT* lrect_queue;
+extern int LLREF_involke;
 int a;
 #endif
 
@@ -85,7 +88,6 @@ int has_new_instance;
 
 int main ( int argc, char *argv[] )
 {
-
     FILE              *p_cfp;
 #ifdef AP_ALSO
     FILE              *ap_cfp;
@@ -95,6 +97,8 @@ int main ( int argc, char *argv[] )
     char               buf[BUFSIZ];
     unsigned           task_id, task_wcet, task_et, prev_task_id=MAX_TASKS;
     unsigned long long task_period, task_req_tim;
+
+    signal_init();
 
 #ifdef LLREF
     memset(release_time,0,sizeof(int)*TICKS);
@@ -203,7 +207,7 @@ int main ( int argc, char *argv[] )
 
     if ( p_util > UTIL_UPPERBOUND ) 
     {
-        printf ( "Cannot execute tasks over 100%% utilization\n" );
+        printf ( "Cannot execute tasks over %2f%% utilization\n",UTIL_UPPERBOUND*100 );
         return 0;
     }
 
@@ -358,6 +362,8 @@ void run_simulation(char* s,SCHEDULING_ALGORITHM sa)
         scheduling();
         /* Tick increment/et decrement and Setting last_empty & used_dl*/
         Tick_inc ();
+        //fprintf(stderr, "Tick: %d\n", tick);
+        //getchar();
         for(processor_id=0;processor_id<PROCESSOR_NUM;processor_id++)
         {
             if ( _kernel_runtsk[processor_id] != NULL ) 
@@ -452,42 +458,36 @@ void from_fifo_to_ap ( void )
     return;
 }
 
-void delete_queue ( TCB **rq,int tid )
+void delete_queue ( TCB **rq,TCB* tcb)
 {
-    TCB *p;
     TCB* h_p;
-    p = *rq;
-    for(;p!=NULL;p=p->next)
+
+    if(rq==NULL || rq==NULL || *rq==NULL){return;}
+
+    h_p = tcb->prev;
+    if(h_p == NULL)
     {
-        if(p->tid == tid)
+        *rq = (*rq) -> next; 
+        if(*rq!=NULL)
         {
-            h_p = p->prev;
-            if(h_p == NULL)
-            {
-                *rq = (*rq) -> next; 
-                if(*rq!=NULL)
-                {
-                    (*rq)->prev = NULL;
-                }
-            }
-            else if(p->next == NULL)
-            {
-                p->prev->next = NULL;
-            }
-            else
-            {
-                h_p->next = p->next;
-                p->next->prev = h_p;
-            }
-            break;
+            (*rq)->prev = NULL;
         }
     }
+    else if(tcb->next == NULL)
+    {
+        tcb->prev->next = NULL;
+    }
+    else
+    {
+        h_p->next = tcb->next;
+        tcb->next->prev = h_p;
+    }
 
-    free ( p );
+    if(tcb->something_else!=NULL){free(tcb->something_else);}
+    free ( tcb );
 
     return;
 }
-
 
 void Initialize ( void )
 {
@@ -514,8 +514,9 @@ void Initialize ( void )
     fifo_ready_queue = NULL;
 
 #ifdef LLREF
-    lrect_queue      = NULL;
-    time_interval    = 0;
+    time_interval      = 0;
+    rest_time_interval = 0;
+    LLREF_involke      = 0;
     for(i=0;i<MAX_TASKS;i++)
     {
         assign_history[i] = -1;
@@ -553,12 +554,11 @@ TCB *entry_set ( int i)
     entry -> tid             = i;
     entry -> inst_no         = inst_no[i];
     entry -> req_tim         = tick;
-    entry -> req_tim_advance = tick;
     entry -> et              = et[i][inst_no[i]];
+    entry -> wcet            = wcet[i];
     entry -> initial_et      = et[i][inst_no[i]];
     entry -> next = entry -> prev = NULL;
-    entry -> pet = C0;   // may be reset in the appropriate function
-  
+    entry -> something_else = NULL;
     entry -> a_dl = (unsigned long long)0xFFFFFFFFFFFFFFFF;  // dummy necessary
   
     return entry;
@@ -589,7 +589,6 @@ void Tick_inc ( )
         if ( _kernel_runtsk[i] != NULL ) 
         {
             --(_kernel_runtsk[i] -> et);
-            --(_kernel_runtsk[i] -> pet);
         }   
     }
     return;
@@ -627,11 +626,11 @@ void Job_exit ( const char *s, int rr, int processor_id) /* rr: resource reclaim
 
     if ( _kernel_runtsk[processor_id] -> a_dl < tick ) 
     {
-        fprintf( stderr, "\n# MISS: %s: tick=%lld: DL=%lld: DL_ORIG=%lld: TID=%d: INST_NO=%d, WCET=%d, ET=%d, req_tim=%lld, req_tim_advance=%lld\n",
-           s, tick, _kernel_runtsk[processor_id]->a_dl, _kernel_runtsk[processor_id]->a_dl_TBS, _kernel_runtsk[processor_id]->tid, _kernel_runtsk[processor_id]->inst_no,
-           wcet[_kernel_runtsk[processor_id]->tid], _kernel_runtsk[processor_id]->initial_et, _kernel_runtsk[processor_id]->req_tim, _kernel_runtsk[processor_id]->req_tim_advance);
-        printf( "\n# MISS: %s: tick=%lld: DL=%lld: DL_ORIG=%lld: TID=%d: INST_NO=%d\n",
-           s, tick, _kernel_runtsk[processor_id]->a_dl, _kernel_runtsk[processor_id]->a_dl_TBS, _kernel_runtsk[processor_id]->tid, _kernel_runtsk[processor_id]->inst_no );
+        fprintf( stderr, "\n# MISS: %s: tick=%lld: DL=%lld: TID=%d: INST_NO=%d, WCET=%d, ET=%d, req_tim=%lld\n",
+           s, tick, _kernel_runtsk[processor_id]->a_dl, _kernel_runtsk[processor_id]->tid, _kernel_runtsk[processor_id]->inst_no,
+           wcet[_kernel_runtsk[processor_id]->tid], _kernel_runtsk[processor_id]->initial_et, _kernel_runtsk[processor_id]->req_tim );
+        printf( "\n# MISS: %s: tick=%lld: DL=%lld: TID=%d: INST_NO=%d\n",
+           s, tick, _kernel_runtsk[processor_id]->a_dl,  _kernel_runtsk[processor_id]->tid, _kernel_runtsk[processor_id]->inst_no);
     }
 
     exec_times[ _kernel_runtsk[processor_id] -> tid]++;
@@ -641,28 +640,15 @@ void Job_exit ( const char *s, int rr, int processor_id) /* rr: resource reclaim
         aperiodic_exec_times++;
         aperiodic_total_et += tick - _kernel_runtsk[processor_id] -> req_tim;
         aperiodic_response_time = (double)aperiodic_total_et / (double)aperiodic_exec_times;
-
-        if ( rr == 1 ) 
-        {/* Trying resource reclaiming */
-            overhead_dl += COMP + COMP + FDIV + CEIL + IADD; /* Of course, (1.0 - p_util) is statically solved. */
-            di_1 = (double)max3(_kernel_runtsk[processor_id]->req_tim_advance, di_1, fi_1) + ceil ( (double)_kernel_runtsk[processor_id]->initial_et/ (UTIL_UPPERBOUND - p_util) );
-        }
-        else 
-        { /* Not concerned with CBS */
-            overhead_dl += ASSIGN;
-            di_1 = _kernel_runtsk[processor_id] -> a_dl_TBS;
-        }
-        overhead_dl += ASSIGN;
-        fi_1 = tick;
     }
 
     if ( periodic[_kernel_runtsk[processor_id]->tid] == 1 )
     {
-        delete_queue ( &p_ready_queue,_kernel_runtsk[processor_id]->tid );
+        delete_queue ( &p_ready_queue,_kernel_runtsk[processor_id]);
     }
     else
     {
-        delete_queue ( &ap_ready_queue,_kernel_runtsk[processor_id]->tid );
+        delete_queue ( &ap_ready_queue,_kernel_runtsk[processor_id]);
     }
     _kernel_runtsk[processor_id] = NULL;
     return;

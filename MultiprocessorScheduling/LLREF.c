@@ -7,6 +7,9 @@
 #include "Schedule.h"
 #include "EDF.h"
 
+#define DEBUG
+
+
 extern TCB* _kernel_runtsk[PROCESSOR_NUM];
 extern TCB* _kernel_runtsk_pre[PROCESSOR_NUM];
 extern TCB* p_ready_queue;
@@ -14,13 +17,16 @@ extern TCB* ap_ready_queue;
 
 extern unsigned long long period[MAX_TASKS];
 extern unsigned long long tick;
+extern unsigned wcet[MAX_TASKS];
 
 int release_time[TICKS];
 int assign_history[MAX_TASKS];
 
 unsigned long long time_interval;
+unsigned long long rest_time_interval;
 
-LLREF_LRECT* lrect_queue;
+int LLREF_involke;
+
 
 // This running queue for those Multiprocessor Real-time Scheduling,
 // Since the migration only occurse in Multiproccessor platform
@@ -43,181 +49,87 @@ unsigned long long next_release_time()
 /*
   Here we will use the tick and array release_time
 */
-double local_remaining_execution_time(const TCB* tcb,unsigned long long next_release_time)
+double local_remaining_execution_time(unsigned r_wcet,unsigned long long part_time_interval,unsigned long long period)
 {
-    if(tcb == NULL){return 0;}
-
-    return ((double)tcb->et*(next_release_time))/period[tcb->tid];
+    double lrect;
+    lrect = ((double)r_wcet*(rest_time_interval))/period; 
+#ifdef DEBUG
+    fprintf(stderr,"%u\t%llu\t%llu\t%f\n",r_wcet,
+                                          part_time_interval,
+                                          period,
+                                          lrect);
+#endif
+    return lrect;
 }
 
 /*
   Sort the waiting queue according to the local remainning execution time.
 */
 
-void LLREF_swap(LLREF_LRECT *rl1,LLREF_LRECT *rl2)
+void LLREF_swap(TCB* t1,TCB* t2)
 {
-    LLREF_LRECT LRECT_tmp;
+    TCB TCB_tmp;
 
-    if(rl1==NULL || rl2==NULL){return;}
+    if(t1==NULL || t2==NULL){return;}
 
-    memcpy(&LRECT_tmp,rl1,DIFF(LLREF_LRECT,next));
-    memcpy(rl1       ,rl2,DIFF(LLREF_LRECT,next));
-    memcpy(rl2,&LRECT_tmp,DIFF(LLREF_LRECT,next));
+    memcpy(&TCB_tmp,t1,DIFF(TCB,next));
+    memcpy(t1      ,t2,DIFF(TCB,next));
+    memcpy(t2,&TCB_tmp,DIFF(TCB,next));
 }
 
-void LLREF_lrect_queue_sort(LLREF_LRECT** rl)
-{
-    LLREF_LRECT* p = NULL;
-    LLREF_LRECT* q = NULL;
-
-    if(rl==NULL){return;}  
-
-    p = *rl;
-    for(;p!=NULL;p=p->next)
-    {
-        for(q=p->next;q!=NULL;q=q->next)
-        {
-            if((p->local_remaining_execution_time)<(q->local_remaining_execution_time))
-            {
-                LLREF_swap(p,q);
-            }
-        }
-    }
-}
-
-void lrect_queue_empty()
+LLREF_LRECT* lrect_node_init(TCB* tcb,unsigned long long rest_time_interval)
 {
     LLREF_LRECT* ll = NULL;
-    LLREF_LRECT* ll_tmp = NULL;
 
-    // Empty lrect_queue
-    for(ll = lrect_queue;ll!=NULL;)
+    if(tcb == NULL){return NULL;}
+
+    ll = (LLREF_LRECT*)malloc(sizeof(LLREF_LRECT));
+    if(ll == NULL)
     {
-        ll_tmp = ll;
-        ll = ll->next;
-        free(ll_tmp);
-    }
-    lrect_queue = NULL;
-}
-
-void LLREF_lrect_queue_build(TCB** rq)
-{
-
-    TCB*         p  = NULL;
-    LLREF_LRECT* ll = NULL;
-
-    if(rq==NULL || *rq==NULL){return;}
-
-    // Empty lrect_queue
-    lrect_queue_empty();
-
-    time_interval = next_release_time();
-
-    for(p=*rq;p!=NULL;p=p->next)
-    {
-        if(p->et==0){continue;}
-
-        ll = (LLREF_LRECT*)malloc(sizeof(LLREF_LRECT));
-        if(ll == NULL)
-        {
-            fprintf(stderr,"Error in malloc\n");
-            return;
-        }
-        ll->local_remaining_execution_time = local_remaining_execution_time(p,time_interval);
-        ll->tcb = p;
-        ll->next = NULL;
-        ll->next = lrect_queue;
-        lrect_queue = ll;
-    }
-}
-
-int task_exist(TCB** rq,TCB* tcb)
-{
-    TCB* p = NULL;
-    if(rq==NULL||*rq==NULL||tcb==NULL){return 1;}
-
-    for(p=*rq;p;p=p->next)
-    {
-        if(p==tcb){return 1;}
-    }
-    
-    return 0;
-}
-
-void lrect_queue_rebuild(TCB** rq)
-{
-    LLREF_LRECT* ll1    = NULL;
-    LLREF_LRECT* ll_tmp = NULL;
-    LLREF_LRECT* ll_new = NULL;
-
-    if(lrect_queue==NULL){return;}
-    if(rq==NULL || *rq==NULL)
-    {
-        lrect_queue_empty();
-        return;
+        fprintf(stderr,"Err with malloc *llref_node_init*\n");
+        return NULL;
     }
 
-    for(ll_tmp=lrect_queue;ll_tmp;)
-    {
-        if(!task_exist(rq,ll_tmp->tcb))
-        {
-            ll1 = ll_tmp;
-            ll_tmp = ll_tmp->next;
-            free(ll1);
-        }
-        else
-        {
-            ll1 = ll_tmp;
-            ll_tmp = ll_tmp->next;
+    ll->r_wcet                         = wcet[tcb->tid];
+    ll->local_remaining_execution_time = local_remaining_execution_time(wcet[tcb->tid],rest_time_interval,period[tcb->tid]);
 
-            ll1->next = ll_new;
-            ll_new = ll1;
-        }
-    }
-
-    lrect_queue = ll_new;
-}
-
-void LLREF_reorganize_function(TCB** rq)
-{
-    if(rq == NULL || *rq == NULL)
-    {
-        return;
-    }
-}
-
-
-int LLREF_insert_OK(TCB* t1,TCB* t2)
-{
-    return EDF_insert_OK(t1,t2);
-}
-
-int LLREF_assign_history_check(TCB* tcb)
-{
-    if(tcb == NULL){return -1;}
-
-    return assign_history[tcb->tid];
+    return ll;
 }
 
 void print_lrect_queue()
 {
     TCB* p=p_ready_queue;
-    LLREF_LRECT* ll = lrect_queue;
 
     fprintf(stderr,"=====================ready queue==================\n");
     while(p)
     {
-        fprintf(stderr,"%p\t%d\t%d\n",p,p->tid,p->et);
+        fprintf(stderr,"%p\t",p);
+        if(p->something_else==NULL){p = p->next;continue;}
+        fprintf(stderr,"%d\t%u\t%u\t%f\n",
+                                              p->tid,
+                                              p->et,
+                                              ((LLREF_LRECT*)(p->something_else))->r_wcet,
+                                              ((LLREF_LRECT*)(p->something_else))->local_remaining_execution_time);
         p = p->next;
     }
     fprintf(stderr,"==================================================\n");
-    fprintf(stderr,"=====================lrect queue====================\n");
-    while(ll)
+}
+
+void LLREF_reduce_lrect()
+{
+    int i;
+    LLREF_LRECT* ll = NULL;
+
+    for(i=0;i<PROCESSOR_NUM;i++)
     {
-        fprintf(stderr,"%d\t%f\t%u\n",ll->tcb->tid,ll->local_remaining_execution_time,ll->tcb->et);
-        ll  = ll->next;
-    }
-    fprintf(stderr,"====================================================\n");
+        if(_kernel_runtsk[i]==NULL){continue;}
+
+        ll = (LLREF_LRECT*)_kernel_runtsk[i]->something_else;
+        if(ll == NULL){fprintf(stderr,"Should not be NULL, in LLREF reduce lrect\n");return;}
+
+        ll->r_wcet-=1;
+        ll->local_remaining_execution_time-=1;
+    }     
 }
 
 /*
@@ -225,12 +137,14 @@ void print_lrect_queue()
   such some tasks' hit the bottom of T-L plan and some token hit the 
   that thing
 */
-int LLREF_check_Second_Event()
+int LLREF_check_Second_Event(TCB** rq)
 {
-    int i;
-    double lrect = 0.0;
-    LLREF_LRECT* ll;
+    int          i     = 0;
+    TCB*         p     = NULL;
+    double       lrect = 0.0;
+    LLREF_LRECT* ll    = NULL;
 
+    if(rq==NULL || *rq==NULL){return 0;}
 
     for(i=0;i<PROCESSOR_NUM;i++)
     {
@@ -238,8 +152,11 @@ int LLREF_check_Second_Event()
         if(_kernel_runtsk[i]==NULL){return 1;}
     }
 
-    for(ll=lrect_queue;ll;ll=ll->next)
+    for(p=*rq;p;p=p->next)
     {
+        ll = (LLREF_LRECT*)(p->something_else);
+        if(ll == NULL){fprintf(stderr,"Err with ll,in check second event\n");}
+        
         lrect = ll->local_remaining_execution_time;
         //The Event B in second Event
         if(lrect<=(double)0)
@@ -258,24 +175,92 @@ int LLREF_check_Second_Event()
     return 0;
 }
 
-void LLREF_reduce_lrect()
+void LLREF_reorganize_function(TCB** rq)
 {
-    int i,changed;
-    LLREF_LRECT* ll = NULL;
+    TCB* p = NULL;
+    TCB* q = NULL;
+    LLREF_LRECT* ll  = NULL;
+    LLREF_LRECT* ll1 = NULL;
+    LLREF_LRECT* ll2 = NULL;
 
-    for(ll=lrect_queue,changed=0;ll&&changed<PROCESSOR_NUM;ll=ll->next,changed++)
+    if(rq == NULL || *rq == NULL){return;}
+
+    // Reduce the rest time interval and the rest 
+    rest_time_interval--;
+    LLREF_reduce_lrect();
+
+    // Check the first event : new task released
+    if(!release_time[tick]) 
     {
-        for(i=0;i<PROCESSOR_NUM;i++)
+        //no new task released, check second event : boundry hitting event
+        if(!LLREF_check_Second_Event(rq))
         {
-            if(_kernel_runtsk[i]==NULL){continue;}
-
-            if(_kernel_runtsk[i]==ll->tcb)
-            {
-                ll->local_remaining_execution_time-=1;
-                break;
-            }
-        }   
+            // no boundry hitting ecent
+            return;
+        }
+#ifdef DEBUG
+        fprintf(stderr,"Event 2 happened\n");
+#endif
     }
+    else
+    {
+
+#ifdef DEBUG
+        fprintf(stderr, "Event 1 happened\n" );
+#endif   
+        
+        rest_time_interval = time_interval = next_release_time();
+
+#ifdef DEBUG
+        fprintf(stderr,"time_interval %llu\n",time_interval);
+#endif  
+        
+        for(p=*rq;p;p=p->next)
+        {
+            ll = (LLREF_LRECT*)(p->something_else);
+            if(ll == NULL)
+            {
+                ll = lrect_node_init(p,rest_time_interval);
+                p->something_else = ll;
+            }
+            else
+            {
+                ll->local_remaining_execution_time = local_remaining_execution_time(ll->r_wcet,rest_time_interval,period[p->tid]);
+            }
+        }
+    }
+#ifdef DEBUG
+    fprintf(stderr,"At tick: %llu\n",tick);
+    fprintf(stderr,"in reorganize\n");
+#endif
+
+    // later we will call the scheduler
+    LLREF_involke = 1;
+
+    p = *rq;
+    for(;p!=NULL;p=p->next)
+    {
+        for(q=p->next;q!=NULL;q=q->next)
+        {
+            ll1 = (LLREF_LRECT*)(p->something_else);
+            ll2 = (LLREF_LRECT*)(q->something_else);
+
+            if(ll1->local_remaining_execution_time<ll2->local_remaining_execution_time){LLREF_swap(p,q);}
+        }
+    }
+}
+
+
+int LLREF_insert_OK(TCB* t1,TCB* t2)
+{
+    return EDF_insert_OK(t1,t2);
+}
+
+int LLREF_assign_history_check(TCB* tcb)
+{
+    if(tcb == NULL){return -1;}
+
+    return assign_history[tcb->tid];
 }
 
 void LLREF_scheduling()
@@ -286,33 +271,24 @@ void LLREF_scheduling()
     int total_assigned = 0;
     TCB*         p  = NULL;
     TCB*         ap = NULL;
-    LLREF_LRECT* ll = NULL;
     //fprintf(stderr,"ss\t");
-    if(time_interval>0){time_interval--;}
-    LLREF_reduce_lrect();
-    if(time_interval<=0)
-    {   
-        //fprintf(stderr,"Event 1\n");
-        LLREF_lrect_queue_build(&p_ready_queue);
-    }
-    else
-    {
-        // Check the Second Event has happened or not
-        if(!LLREF_check_Second_Event()){return;}
-        //fprintf(stderr,"Event 2\n");
-        lrect_queue_rebuild(&p_ready_queue);
-    }
-    //lrect_queue is only for periodic tasks,so it might be NULL
+
+    if(p_ready_queue == NULL){return;}
+
+    if(!LLREF_involke){return;}
+    LLREF_involke = 0;
+
+#ifdef DEBUG
+    fprintf(stderr,"in scheduling\n");
     print_lrect_queue();
-    LLREF_lrect_queue_sort(&lrect_queue); 
-    //fprintf(stderr,"inLLrefat%llu\n",tick);
+#endif
 
     for(i=0;i<PROCESSOR_NUM;i++){_kernel_runtsk[i] = NULL;}
 
-    ll = lrect_queue;
-    for(;ll!=NULL&&total_assigned<PROCESSOR_NUM;ll=ll->next,total_assigned++)
+    // Actually, at this moment, the p_ready_queue should be already soreded by local_remaining_execution_time;
+
+    for(p=p_ready_queue;p&&total_assigned<PROCESSOR_NUM;p=p->next,total_assigned++)
     {
-        p = ll->tcb;
         processor_id = LLREF_assign_history_check(p);
         if(processor_id==-1 || assigned[processor_id])
         {
@@ -352,9 +328,13 @@ void LLREF_scheduling()
             } 
         }
     }
+    
+#ifdef DEBUG
     for(i=0;i<PROCESSOR_NUM;i++)
     {
-        fprintf(stderr,"%d\t%p\n",i,_kernel_runtsk[i]);
+        if(_kernel_runtsk[i]==NULL){continue;}
+        fprintf(stderr,"%d\t%d\n",i,_kernel_runtsk[i] -> tid);
     }
-    //getchar();
+#endif
+
 }

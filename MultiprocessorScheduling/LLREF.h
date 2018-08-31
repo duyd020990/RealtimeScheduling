@@ -8,8 +8,7 @@
 typedef struct llref_lrect
 {
     double local_remaining_execution_time;
-    TCB* tcb;
-    struct llref_lrect* next;
+    unsigned r_wcet;
 }LLREF_LRECT;
 
 void LLREF_scheduling();

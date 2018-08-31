@@ -2,7 +2,7 @@ PRINT		= 0
 CFLAGS		= -Wall -O2 -DPRINT=$(PRINT)
 LDFLAGS		= -lm
 TARGET		= Schedule
-objects		= Schedule.o RM.o LSF.o EDF.o ILSF.o RUN.o LLREF.o
+objects		= Schedule.o RM.o LSF.o EDF.o ILSF.o RUN.o LLREF.o signal.o
 
 all:		$(TARGET)
 

@@ -2,7 +2,7 @@
 
 UAP_TASK_SET=TS-5
 
-
+\rm results.csv
 \rm ovhd_dl_max.csv
 \rm ovhd_dl_total.csv
 \rm ovhd_al_max.csv
@@ -14,13 +14,12 @@ UAP_TASK_SET=TS-5
 #echo ",RM, TBS, TBS+VRA, ATBS, ATBS+VRA, TB*/TB(n), CBS" > ovhd_al_max.csv
 #echo ",RM, TBS, TBS+VRA, ATBS, ATBS+VRA, TB*/TB(n), CBS" > ovhd_al_total.csv
 
-./DataGenerator 4 
+#./DataGenerator 4 
 
 I=65
 while  [ $I -ne 95 ]
 do
 	I=`expr $I + 5`
-	echo "******** $I % ********"
 	echo "" >> results.csv
 	echo "" >> ovhd_dl_max.csv
 	echo "" >> ovhd_dl_total.csv
@@ -52,6 +51,7 @@ do
 	while  [ $X -ne 10 ]
 	do
 		X=`expr $X + 1`
+		echo "******** $I % $X data ********" >> run.txt
 		cp -p ./periodic.cfg.${I}-${X} ./periodic.cfg
 		./Schedule >> results.csv
 	done
