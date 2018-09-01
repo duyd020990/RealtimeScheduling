@@ -166,19 +166,19 @@ SCB* SCB_list_retrieve(SCB** scb_list)
     return scb;
 }
 
-SCB* SCB_list_pack(SCB** scb_list)
+SCB* SCB_list_pack(SCB** SCB_list)
 {
     SCB* scb             = NULL;
     SCB* SCB_pack        = NULL;
     SCB* packed_SCB_list = NULL;
 
-    if(scb_list==NULL || *scb_list==NULL){return NULL;}
+    if(SCB_list==NULL || *SCB_list==NULL){return NULL;}
 
     // If there still are some scb server in the scb_list
-    while(*scb_list)
+    while(*SCB_list)
     {
         // Retrieve a server from the server list
-        scb = SCB_list_retrieve(scb_list);
+        scb = SCB_list_retrieve(SCB_list);
 
         // This is the first element of packed_SCB_list
         if(packed_SCB_list == NULL)
@@ -191,10 +191,7 @@ SCB* SCB_list_pack(SCB** scb_list)
             for(SCB_pack=packed_SCB_list;SCB_pack;SCB_pack=SCB_pack->next)
             {
                 // Good, there is a pack could contain this server
-                if(SCB_pack_fill(SCB_pack,scb))
-                {
-                    break;
-                }
+                if(SCB_pack_fill(SCB_pack,scb)){break;}
             }  
 
             // Bad, no any pack could contain this server
@@ -211,6 +208,76 @@ SCB* SCB_list_pack(SCB** scb_list)
     return packed_SCB_list;
 }
 
+SCB* SCB_to_dual(SCB* scb)
+{
+    SCB* SCB_dual = NULL;
+
+    if(scb == NULL){printf("Error with malloc,in SCB_server_to_dual\n");return NULL;}
+
+    SCB_dual = (SCB*)malloc(sizeof(SCB));
+    if(SCB_dual==NULL){printf("Error with malloc,in SCB_to_dual\n");return NULL;}
+
+    SCB_dual->is_pack      = DUAL;
+    SCB_dual->deadline     = scb->deadline;
+    SCB_dual->ultilization = (double)1-(scb->ultilization);
+    SCB_dual->leaf         = scb;
+    SCB_dual->next         = NULL;
+    SCB_dual->tcb          = NULL;
+
+    return SCB_dual;
+}
+
+SCB* SCB_dual_list_build(SCB** packed_SCB_list)
+{
+    SCB* packed_SCB       = NULL;
+    SCB* dual_server      = NULL;
+    SCB* dual_server_list = NULL;
+
+    if(packed_SCB_list==NULL || *packed_SCB_list==NULL){return NULL;}
+
+    while(*packed_SCB_list)
+    {
+        packed_SCB = SCB_list_retrieve(packed_SCB_list);
+        dual_server = SCB_to_dual(packed_SCB);
+
+        if(dual_server_list == NULL)
+        {
+            dual_server_list = dual_server;
+        }
+        else
+        {
+            dual_server->next = dual_server_list;
+            dual_server_list  = dual_server;
+        }
+    }
+
+    return dual_server_list;
+}
+
+SCB* SCB_reduction_tree_build(TCB** rq)
+{
+    SCB* SCB_reduction_root     = NULL;
+    SCB* SCB_server_list        = NULL;
+    SCB* SCB_packed_server_list = NULL;
+    SCB* SCB_dual_server_list   = NULL;
+
+    if(rq==NULL || *rq==NULL){return NULL;}
+
+    SCB_server_list = SCB_list_build(rq);
+
+    while(SCB_server_list->next!=NULL)
+    {
+        SCB_packed_server_list = SCB_list_pack(&SCB_packed_server_list);
+
+        SCB_dual_server_list = SCB_dual_list_build(&SCB_packed_server_list);
+
+        SCB_server_list = SCB_dual_server_list;
+    }
+
+    SCB_reduction_root = SCB_server_list;
+
+    return SCB_reduction_root;
+}
 
 void RUN_scheduling_initialize()
 {
@@ -226,12 +293,15 @@ int RUN_insert_OK(TCB* t1,TCB* t2)
 
 void RUN_reorganize_function(TCB** rq)
 {
+    SCB* SCB_reduction_tree_root = NULL;
+
+    if(rq==NULL || *rq==NULL){return;}
+
     if(has_new_task)
     {
         has_new_task = 0;
 
-
-
+        SCB_reduction_tree_root = SCB_reduction_tree_build(rq);
 
     }
     else if(has_new_instance)
