@@ -306,13 +306,14 @@ void run_simulation(char* s,SCHEDULING_ALGORITHM sa)
     void (*scheduling_initialize)() = NULL;
     TCB *entry;
 
-    if(sa.scheduling_initialize==NULL || sa.scheduling==NULL || sa.insert_OK==NULL || sa.reorganize_function==NULL)
+    if(sa.scheduling_initialize==NULL || sa.scheduling==NULL || \
+       sa.insert_OK==NULL || sa.reorganize_function==NULL)
     {
         return;
     }
-    scheduling_initialize = (void(*)())sa.scheduling_initialize;
-    scheduling = (void (*)())sa.scheduling;
-    reorganize_function = (void (*)(TCB**))sa.reorganize_function;
+    scheduling_initialize = (void (*)())sa.scheduling_initialize;
+    scheduling            = (void (*)())sa.scheduling;
+    reorganize_function   = (void (*)(TCB**))sa.reorganize_function;
     
     Initialize ();
     scheduling_initialize();
@@ -487,6 +488,8 @@ void Initialize ( void )
     aperiodic_exec_times    = 0;
     aperiodic_total_et      = 0;
     aperiodic_response_time = 0;
+    has_new_instance        = 0;
+    has_new_task            = 0;
 
     for(i=0;i<PROCESSOR_NUM;i++)
     {
