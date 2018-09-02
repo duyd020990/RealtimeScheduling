@@ -9,6 +9,7 @@
 #define PACK  1
 #define LEAF  2
 
+// This is a block,I use to represent a server, what ever it's a dual server(DUAL) or a server pack(PACK) or just a server(LEAF)
 typedef struct scb
 {
     int                is_pack;      //Determin this is a pack or a dual server.
@@ -19,6 +20,12 @@ typedef struct scb
     struct scb*        next;         //Point to the next SCB block.
 }SCB;
 
+// This is a container for a TCb block
+typedef struct tcb_cntnr
+{
+	TCB*              tcb;
+	struct tcb_cntnr* next;
+}TCB_CNTNR;
 
 void RUN_scheduling_initialize();
 

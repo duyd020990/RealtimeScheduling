@@ -18,6 +18,8 @@ extern TCB* ap_ready_queue;
 
 SCB* SCB_root;
 
+TCB_CNTNR* execution_queue;
+
 /* 
   This running queue for those Multiprocessor Real-time Scheduling,
   Since the migration only occurse in Multiproccessor platform
@@ -74,6 +76,21 @@ SCB* TCB_to_SCB(TCB* tcb)
     tcb->something_else = scb;
 
     return scb;
+}
+
+TCB_CNTNR* TCB_to_TCB_CNTNR(TCB* tcb)
+{
+    TCB_CNTNR* tcb_cntnr = NULL;
+
+    if(tcb==NULL){return NULL;}
+
+    tcb_cntnr = (TCB_CNTNR*)malloc(sizeof(TCB_CNTNR));
+    if(tcb_cntnr == NULL){printf("Error with malloc,in TCB_to_TCB_CNTNR\n");return NULL;}
+
+    tcb_cntnr->tcb  = tcb;
+    tcb_cntnr->next = NULL;
+
+    return tcb_cntnr;
 }
 
 SCB* SCB_to_packed_SCB(SCB* scb)
@@ -317,17 +334,67 @@ SCB* SCB_reduction_tree_build(TCB** rq)
     return SCB_reduction_root;
 }
 
+
+void RUN_reduction_tree_unpack(SCB** SCB_root,int selected)
+{
+    SCB* scb              = NULL;
+    SCB* SCB_tmp          = NULL;
+    SCB* earliest_ddl_SCB = NULL;
+    TCB_CNTNR* tcb_cntnr  = NULL;
+
+    if(SCB_root==NULL || *SCB_root==NULL){return;}
+
+    scb = *SCB_root;
+
+    switch(scb->is_pack)
+    {
+        case LEAF:
+            if(!selected){return;}
+            
+            tcb_cntnr = TCB_to_TCB_CNTNR(scb->tcb);
+            
+            if(execution_queue == NULL){execution_queue = tcb_cntnr;}
+            else
+            {
+                tcb_cntnr->next   = execution_queue;
+                execution_queue = tcb_cntnr;
+            }
+            break;
+
+        case PACK:
+            if(!selected){return;}
+
+            earliest_ddl_SCB = scb->leaf;
+            for(SCB_tmp = scb->leaf;SCB_tmp;SCB_tmp=SCB_tmp->next)
+            {
+                if(SCB_tmp->deadline<earliest_ddl_SCB->deadline)
+                {
+                    earliest_ddl_SCB = SCB_tmp;
+                }
+                else
+                {
+                    RUN_reduction_tree_unpack(&(SCB_tmp),0);
+                }
+            }
+            RUN_reduction_tree_unpack(&earliest_ddl_SCB,1);
+            break;
+
+        case DUAL: 
+            RUN_reduction_tree_unpack(&(scb->leaf),!selected);
+            break;
+    }
+}
+
 void RUN_scheduling_initialize()
 {
-    SCB_root = NULL;
-    return;
+    SCB_root        = NULL;
+    execution_queue = NULL;
 }
 
 int RUN_insert_OK(TCB* t1,TCB* t2)
 {
     return EDF_insert_OK(t1,t2);
 }
-
 
 void RUN_reorganize_function(TCB** rq)
 {
@@ -342,6 +409,10 @@ void RUN_reorganize_function(TCB** rq)
         SCB_reduction_tree_root = SCB_reduction_tree_build(rq);
 
         printf("%d ",SCB_reduction_tree_root->is_pack);
+
+        // Since in my implementation, the root is a dual server, 
+        //so the parameter "selected" is initialize as 0.
+        RUN_reduction_tree_unpack(&SCB_reduction_tree_root,0);
 
     }
     else if(has_new_instance)
