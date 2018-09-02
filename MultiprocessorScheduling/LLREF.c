@@ -279,12 +279,12 @@ int LLREF_insert_OK(TCB* t1,TCB* t2)
 
 void LLREF_scheduling()
 {    
-    int i;
-    int processor_id=-1;
-    int assigned[PROCESSOR_NUM] = {0};
-    int total_assigned = 0;
-    TCB*         p  = NULL;
-    TCB*         ap = NULL;
+    int  i;
+    int  processor_id            = -1;
+    int  assigned[PROCESSOR_NUM] = {0};
+    int  total_assigned          = 0;
+    TCB* p                       = NULL;
+    TCB* ap                      = NULL;
     //fprintf(stderr,"ss\t");
 
     if(p_ready_queue == NULL){return;}

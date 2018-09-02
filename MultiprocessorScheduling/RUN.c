@@ -254,6 +254,35 @@ SCB* SCB_dual_list_build(SCB** packed_SCB_list)
     return dual_server_list;
 }
 
+void RUN_proper_server_remove(SCB** SCB_root,SCB** SCB_list)
+{
+    SCB*  SCB_tmp = NULL;
+    SCB** scb = NULL;
+
+    if(SCB_root==NULL || SCB_list==NULL || *SCB_list==NULL){return;}
+
+    for(scb = SCB_list;*scb;)
+    {
+        if((*scb)->ultilization == (double)1)
+        {
+            SCB_tmp = *scb;
+            *scb = ((*scb)->next);
+            SCB_tmp->next = NULL;
+
+            if(*SCB_root == NULL){*SCB_root = SCB_tmp;}
+            else
+            {
+                SCB_tmp->next = *SCB_root;
+                *SCB_root = SCB_tmp;
+            }
+        }
+        else
+        {
+            scb=&((*scb)->next);
+        }
+    }
+}
+
 SCB* SCB_reduction_tree_build(TCB** rq)
 {
     SCB* SCB_reduction_root     = NULL;
@@ -265,16 +294,25 @@ SCB* SCB_reduction_tree_build(TCB** rq)
 
     SCB_server_list = SCB_list_build(rq);
 
-    while(SCB_server_list->next!=NULL)
+    while(SCB_server_list && SCB_server_list->next!=NULL)
     {
         SCB_packed_server_list = SCB_list_pack(&SCB_packed_server_list);
+
+        RUN_proper_server_remove(&SCB_reduction_root,&SCB_packed_server_list);
 
         SCB_dual_server_list = SCB_dual_list_build(&SCB_packed_server_list);
 
         SCB_server_list = SCB_dual_server_list;
     }
 
-    SCB_reduction_root = SCB_server_list;
+    if(SCB_reduction_root==NULL)
+    {
+        SCB_reduction_root = SCB_server_list;
+    }
+    else
+    {
+        SCB_reduction_root->next = SCB_server_list;
+    }
 
     return SCB_reduction_root;
 }
@@ -302,6 +340,8 @@ void RUN_reorganize_function(TCB** rq)
         has_new_task = 0;
 
         SCB_reduction_tree_root = SCB_reduction_tree_build(rq);
+
+        printf("%d ",SCB_reduction_tree_root->is_pack);
 
     }
     else if(has_new_instance)
