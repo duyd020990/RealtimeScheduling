@@ -244,6 +244,32 @@ SCB* SCB_to_dual(SCB* scb)
     return SCB_dual;
 }
 
+void execution_queue_insert(TCB_CNTNR* new_tc)
+{
+    TCB_CNTNR** tc = NULL;
+
+    if(new_tc == NULL){return;}
+
+    if(execution_queue == NULL)
+    {
+        execution_queue = new_tc;
+    }
+
+    for(tc = &execution_queue;*tc;)
+    {
+        if(EDF_insert_OK(new_tc->tcb,(*tc)->tcb))
+        {
+            new_tc->next = *tc;
+            *tc = new_tc;
+            break;
+        }
+        else
+        {
+            tc = &((*tc)->next);
+        }
+    }
+}
+
 SCB* SCB_dual_list_build(SCB** packed_SCB_list)
 {
     SCB* packed_SCB       = NULL;
@@ -335,7 +361,7 @@ SCB* SCB_reduction_tree_build(TCB** rq)
 }
 
 
-void RUN_reduction_tree_unpack(SCB** SCB_root,int selected)
+void RUN_reduction_tree_unpack_by_root(SCB** SCB_root,int selected)
 {
     SCB* scb              = NULL;
     SCB* SCB_tmp          = NULL;
@@ -353,12 +379,7 @@ void RUN_reduction_tree_unpack(SCB** SCB_root,int selected)
             
             tcb_cntnr = TCB_to_TCB_CNTNR(scb->tcb);
             
-            if(execution_queue == NULL){execution_queue = tcb_cntnr;}
-            else
-            {
-                tcb_cntnr->next   = execution_queue;
-                execution_queue = tcb_cntnr;
-            }
+            execution_queue_insert(tcb_cntnr);
             break;
 
         case PACK:
@@ -373,16 +394,37 @@ void RUN_reduction_tree_unpack(SCB** SCB_root,int selected)
                 }
                 else
                 {
-                    RUN_reduction_tree_unpack(&(SCB_tmp),0);
+                    RUN_reduction_tree_unpack_by_root(&(SCB_tmp),0);
                 }
             }
-            RUN_reduction_tree_unpack(&earliest_ddl_SCB,1);
+            RUN_reduction_tree_unpack_by_root(&earliest_ddl_SCB,1);
             break;
 
         case DUAL: 
-            RUN_reduction_tree_unpack(&(scb->leaf),!selected);
+            RUN_reduction_tree_unpack_by_root(&(scb->leaf),!selected);
             break;
     }
+}
+
+void RUN_reduction_tree_unpack(SCB** SCB_root)
+{
+    SCB* scb     = NULL;
+    SCB* SCB_min = NULL;
+
+    if(SCB_root==NULL || *SCB_root==NULL){return;}
+
+    SCB_min = *SCB_root;
+
+    for(scb=*SCB_root;scb;scb=scb->next)
+    {
+        if(scb->deadline < SCB_min->deadline){SCB_min = scb;}
+        else
+        {
+            RUN_reduction_tree_unpack_by_root(&scb,0);
+        }
+    }
+    RUN_reduction_tree_unpack_by_root(&SCB_min,1);
+
 }
 
 void RUN_scheduling_initialize()
@@ -410,9 +452,7 @@ void RUN_reorganize_function(TCB** rq)
 
         printf("%d ",SCB_reduction_tree_root->is_pack);
 
-        // Since in my implementation, the root is a dual server, 
-        //so the parameter "selected" is initialize as 0.
-        RUN_reduction_tree_unpack(&SCB_reduction_tree_root,0);
+        RUN_reduction_tree_unpack(&SCB_reduction_tree_root);
 
     }
     else if(has_new_instance)
