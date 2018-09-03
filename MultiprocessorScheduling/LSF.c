@@ -16,7 +16,15 @@ extern TCB* _kernel_runtsk_pre[PROCESSOR_NUM];
 extern TCB* p_ready_queue;
 extern TCB* ap_ready_queue;
 
-unsigned long long migration;
+/* Variables for overheads estimation */
+extern unsigned long long migration;
+extern unsigned long long overhead_dl;
+extern unsigned long long overhead_dl_max;
+extern unsigned long long overhead_dl_total;
+extern unsigned long long overhead_alpha;
+extern unsigned long long overhead_alpha_max;
+extern unsigned long long overhead_alpha_total;
+
 
 SCHEDULING_ALGORITHM LSF_sa={
     .scheduling_initialize = LSF_scheduling_initialize,

@@ -16,7 +16,6 @@
 //#define AP_ALSO
 
 #ifdef LSF
-unsigned long long migration;
 extern SCHEDULING_ALGORITHM LSF_sa;
 #endif
 
@@ -38,41 +37,49 @@ extern SCHEDULING_ALGORITHM LLREF_sa;
 /***********************************************************************************************************/
 
 unsigned long long  tick;
-unsigned            et[MAX_TASKS][MAX_INSTANCES];       /* 各タスクのインスタンス毎の実行時間             */
-unsigned            wcet[MAX_TASKS];                    /* 各タスクのインスタンス毎の最悪実行時間         */
-unsigned            inst_no[MAX_TASKS];                 /* 各タスクの現在のインスタンス番号               */
-unsigned            periodic[MAX_TASKS];                /* 各タスクが周期タスクか非周期タスクか           */
-unsigned long long  period[MAX_TASKS];                  /* 周期タスクの周期．非周期タスクはゼロ           */
-unsigned long long  phase[MAX_TASKS];                   /* Phase of periodic tasks                        */
-unsigned long long  req_tim[MAX_TASKS][MAX_INSTANCES];  /* 各タスクの開始時刻                             */
-unsigned            exec_times[MAX_TASKS];              /* 各タスクの実行回数                             */
-unsigned            aperiodic_exec_times;               /* 非周期タスク全体の実行回数                     */
-unsigned            aperiodic_total_et;                 /* 非周期タスク全体のトータル実行時間             */
-double              aperiodic_response_time;            /* 非周期タスクの平均応答時間                     */
-double              p_util=0.0;                         /* 周期タスク群のトータル使用率                   */
-double              job_util[MAX_TASKS];
+unsigned            et[MAX_TASKS][MAX_INSTANCES];       /* Rest execution time of each job                 */
+unsigned            wcet[MAX_TASKS];                    /* Worst execution time                            */
+unsigned            inst_no[MAX_TASKS];                 /* Instance number of each task                    */
+unsigned            periodic[MAX_TASKS];                /* This task is periodic tasks or not              */
+unsigned long long  period[MAX_TASKS];                  /* The period of each task                         */
+unsigned long long  phase[MAX_TASKS];                   /* Phase of periodic tasks                         */
+unsigned long long  req_tim[MAX_TASKS][MAX_INSTANCES];  /* The request time of each task                   */
+unsigned            exec_times[MAX_TASKS];              /* OK, I don't what's the purpose of this array :P */
+double              p_util=0.0;                         /* The total ultilization of task set              */
+double              job_util[MAX_TASKS];                /* The ultilization of each job                    */
+unsigned int        aperiodic_exec_times;               /* Don't know the purpose, might be for those aperiodic tasks :P */
+unsigned int        aperiodic_total_et;                 /* Don't know the purpose, might be for those aperiodic tasks :P */
+double              aperiodic_response_time;            /* Don't know the purpose, might be for those aperiodic tasks :P */
 
-TCB                *p_ready_queue, *ap_ready_queue;
-TCB                *fifo_ready_queue;
-unsigned            p_tasks, ap_tasks;
-TCB                *_kernel_runtsk[PROCESSOR_NUM] = {NULL}, *_kernel_runtsk_pre[PROCESSOR_NUM] = {NULL};
+TCB*     p_ready_queue;
+TCB*     ap_ready_queue;
+TCB*     fifo_ready_queue;
+TCB*     _kernel_runtsk[PROCESSOR_NUM]     = {NULL};
+TCB*     _kernel_runtsk_pre[PROCESSOR_NUM] = {NULL};
+unsigned p_tasks;
+unsigned ap_tasks;
 
-/* Variables for TBS95 */
+/* Variables for overheads estimation */
+unsigned long long migration;
+unsigned long long overhead_dl;
+unsigned long long overhead_dl_max;
+unsigned long long overhead_dl_total;
+unsigned long long overhead_alpha;
+unsigned long long overhead_alpha_max;
+unsigned long long overhead_alpha_total;
+
+int has_new_task;
+int has_new_instance;
+
+
+/* Variables for TBS95 */////////////////One day,I will remove these things
 unsigned long long  di_1, fi_1;
 
 /* Variables for VRA */
 unsigned long long  max_used_dl;
 unsigned long long  used_dl[PROCESSOR_NUM][TICKS];
-unsigned            last_empty[PROCESSOR_NUM];                         /* 最後の空スロット番号                           */
+unsigned int        last_empty[PROCESSOR_NUM];                         /* 最後の空スロット番号                           */
 
-/* Variables for overheads estimation */
-unsigned long long overhead_dl, overhead_dl_max, overhead_dl_total;
-unsigned long long overhead_alpha, overhead_alpha_max, overhead_alpha_total;
-
-int has_new_task;
-int has_new_instance;
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 int main ( int argc, char *argv[] )
 {
@@ -300,11 +307,12 @@ int main ( int argc, char *argv[] )
 
 void run_simulation(char* s,SCHEDULING_ALGORITHM sa)
 {
-    int i,processor_id;
-    void (*scheduling)() = NULL;
+    int  i                             = 0;
+    int  processor_id                  = 0;
+    void (*scheduling)()               = NULL;
     void (*reorganize_function)(TCB**) = NULL;
-    void (*scheduling_initialize)() = NULL;
-    TCB *entry;
+    void (*scheduling_initialize)()    = NULL;
+    TCB  *entry                        = NULL;
 
     if(sa.scheduling_initialize==NULL || sa.scheduling==NULL || \
        sa.insert_OK==NULL || sa.reorganize_function==NULL)
@@ -485,9 +493,6 @@ void Initialize ( void )
 {
     int i,j;
 
-    aperiodic_exec_times    = 0;
-    aperiodic_total_et      = 0;
-    aperiodic_response_time = 0;
     has_new_instance        = 0;
     has_new_task            = 0;
 
@@ -522,7 +527,13 @@ void Initialize ( void )
     }
     max_used_dl = 0;
 
-    overhead_dl = overhead_alpha = overhead_dl_max = overhead_alpha_max = overhead_dl_total = overhead_alpha_total = 0;
+    migration            = \
+    overhead_dl          = \
+    overhead_alpha       = \
+    overhead_dl_max      = \
+    overhead_alpha_max   = \
+    overhead_dl_total    = \
+    overhead_alpha_total = 0;
 
     return;
 }
