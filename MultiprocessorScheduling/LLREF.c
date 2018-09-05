@@ -106,11 +106,13 @@ void print_lrect_queue()
     {
         fprintf(stderr,"%p\t",p);
         if(p->something_else==NULL){p = p->next;continue;}
-        fprintf(stderr,"%d\t%u\t%u\t%f\n",
+        fprintf(stderr,"%d\t%u\t%u\t%f\t%llu\t%u\n",
                                               p->tid,
                                               p->et,
                                               ((LLREF_LRECT*)(p->something_else))->r_wcet,
-                                              ((LLREF_LRECT*)(p->something_else))->local_remaining_execution_time);
+                                              ((LLREF_LRECT*)(p->something_else))->local_remaining_execution_time,
+                                              time_interval,
+                                              wcet[p->tid]);
         p = p->next;
     }
     fprintf(stderr,"==================================================\n");
