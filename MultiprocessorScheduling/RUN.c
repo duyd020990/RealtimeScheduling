@@ -50,10 +50,9 @@ void SCB_list_print(SCB** scb_list)
 
     for(scb = *scb_list,i=0;scb;scb = scb->next,i++)
     {
-        printf("%d\t%f\t%llu\t%llu\t%p\n",i                    ,
+        printf("%d\t%f\t%llu\t%p\n",i                    ,
                                           scb->ultilization    ,
                                           scb->deadline        ,
-                                          period[scb->tcb->tid],
                                           scb->tcb            );
     }
 }
@@ -253,6 +252,7 @@ void execution_queue_insert(TCB_CNTNR* new_tc)
     if(execution_queue == NULL)
     {
         execution_queue = new_tc;
+        return;
     }
 
     for(tc = &execution_queue;*tc;)
@@ -261,12 +261,17 @@ void execution_queue_insert(TCB_CNTNR* new_tc)
         {
             new_tc->next = *tc;
             *tc = new_tc;
-            break;
+            return;
         }
         else
         {
             tc = &((*tc)->next);
         }
+    }
+
+    if(*tc == NULL)
+    {
+        *tc = new_tc;
     }
 }
 
@@ -339,7 +344,7 @@ SCB* SCB_reduction_tree_build(TCB** rq)
 
     while(SCB_server_list && SCB_server_list->next!=NULL)
     {
-        SCB_packed_server_list = SCB_list_pack(&SCB_packed_server_list);
+        SCB_packed_server_list = SCB_list_pack(&SCB_server_list);
 
         RUN_proper_server_remove(&SCB_reduction_root,&SCB_packed_server_list);
 
