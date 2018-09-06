@@ -219,8 +219,6 @@ int main(int argc,char** argv)
             fprintf(f,"#tid\twcet\tet\tprd\treq_tim\n");
             for (j = 0; j < MAX_TSK; j++)
             {
-                //printf("%f ",util[i][k][j]);
-                //getchar();
                 if (util[i][k][j] > 0)
                 {
                     for (l = 0; l*period[i][k][j] < MAX_OBSERVATION; l++)
