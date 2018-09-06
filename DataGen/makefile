@@ -1,7 +1,7 @@
 
 
 all:
-	gcc -o DataGenerator DataGenerator.c
+	gcc -o DataGenerator DataGenerator.c -lm
 	mv DataGenerator ../
 
 clean:
