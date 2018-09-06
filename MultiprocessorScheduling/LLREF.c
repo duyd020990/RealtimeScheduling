@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 
 #include "Schedule.h"
 #include "EDF.h"
@@ -50,7 +51,7 @@ unsigned long long next_release_time()
 /*
   Here we will use the tick and array release_time
 */
-double local_remaining_execution_time(unsigned r_wcet,unsigned long long part_time_interval,unsigned long long period)
+int local_remaining_execution_time(unsigned r_wcet,unsigned long long part_time_interval,unsigned long long period)
 {
     double lrect;
     lrect = ((double)r_wcet*(rest_time_interval))/period; 
@@ -60,7 +61,7 @@ double local_remaining_execution_time(unsigned r_wcet,unsigned long long part_ti
                                           period,
                                           lrect);
 #endif
-    return lrect;
+    return round(lrect);
 }
 
 /*
@@ -101,21 +102,22 @@ void print_lrect_queue()
 {
     TCB* p=p_ready_queue;
 
-    fprintf(stderr,"=====================ready queue==================\n");
+    fprintf(stderr,"=============================ready queue=============================\n");
+    fprintf(stderr,"addre\t\titd\tret\tret\tlrect\tinterval period\n");
     while(p)
     {
         fprintf(stderr,"%p\t",p);
         if(p->something_else==NULL){p = p->next;continue;}
-        fprintf(stderr,"%d\t%u\t%u\t%f\t%llu\t%u\n",
+        fprintf(stderr,"%d\t%u\t%u\t%d\t%llu\t%llu\n",
                                               p->tid,
                                               p->et,
                                               ((LLREF_LRECT*)(p->something_else))->r_wcet,
                                               ((LLREF_LRECT*)(p->something_else))->local_remaining_execution_time,
                                               time_interval,
-                                              wcet[p->tid]);
+                                              period[p->tid]);
         p = p->next;
     }
-    fprintf(stderr,"==================================================\n");
+    fprintf(stderr,"====================================================================\n");
 }
 
 void LLREF_reduce_lrect()
@@ -130,8 +132,8 @@ void LLREF_reduce_lrect()
         ll = (LLREF_LRECT*)_kernel_runtsk[i]->something_else;
         if(ll == NULL){fprintf(stderr,"Should not be NULL, in LLREF reduce lrect\n");return;}
 
-        ll->r_wcet-=1;
-        ll->local_remaining_execution_time-=1;
+        ll->r_wcet--;
+        ll->local_remaining_execution_time--;
     }     
 }
 
@@ -168,8 +170,7 @@ int LLREF_check_Second_Event(TCB** rq)
             return 1;
         }
         //The Event C in second Event
-        else if(((unsigned long long)lrect+1==time_interval&&lrect>(double)time_interval) || \
-                 (unsigned long long)lrect  ==time_interval)
+        else if((unsigned long long)lrect >= rest_time_interval)
         {
             //fprintf(stderr,"tid %d hit the bound\n",ll->tcb->tid);
             return 1;
@@ -255,6 +256,7 @@ void LLREF_reorganize_function(TCB** rq)
 #ifdef DEBUG
     fprintf(stderr,"At tick: %llu\n",tick);
     fprintf(stderr,"in reorganize\n");
+    getchar();
 #endif
 
     // later we will call the scheduler
@@ -315,15 +317,11 @@ void LLREF_scheduling()
             }
             if(i<PROCESSOR_NUM)
             {
-                _kernel_runtsk[i] = p;
-                assigned[i] = 1;
+                processor_id = i;
             }
         }
-        else
-        {
-            _kernel_runtsk[processor_id] = p;
-            assigned[processor_id] = 1;
-        }
+        _kernel_runtsk[processor_id] = p;
+        assigned[processor_id] = 1;
 
         if(_kernel_runtsk_pre[processor_id] != _kernel_runtsk[processor_id])
         {
@@ -333,7 +331,7 @@ void LLREF_scheduling()
 
     for(i=0;i<PROCESSOR_NUM;i++)
     {
-        if(_kernel_runtsk==NULL)
+        if(_kernel_runtsk[i]==NULL)
         {
             _kernel_runtsk[i] = ap;
             if(ap!=NULL){ap = ap->next;}
