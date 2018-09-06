@@ -2,18 +2,16 @@
 // Utilization cases: 70% --> 100%, interval = 5;
 
 #ifdef WINDOWS
-
 #include "stdafx.h"
 #include "string"
 #include <conio.h>
-
 #endif
 
 #include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <math.h>
 #include <time.h>
+#include <string.h>
+#include <stdlib.h>
+#include <math.h>
 
 #define CAP              4        // CAPacity of the system (the number of processor)
 #define MAX_AP_SET       30
@@ -26,7 +24,7 @@
 #define UTIL_LOWER_BOUND 0.1
 #define UTIL_UPPER_BOUND 0.7
 
-#define UNIDIS(l,r,h)   (h-1>0)?(r%(h-1))+l:1 
+#define UNIDIS(l,r,h)   (h-1>0)?(r%(h-1))+l:1
 
 double exp_dist(double lambda,unsigned rand)
 {
@@ -35,52 +33,58 @@ double exp_dist(double lambda,unsigned rand)
     return -log(1-u)/lambda;
 }
 
+void empty_double(double array[],unsigned len)
+{
+    int i;
+    if(array==NULL){return;}
+    for(i=0;i<len;i++){array[i] = 0;}
+}
+
 #ifdef WINDOWS
 int main()
 #else
 int main(int argc,char** argv)
 #endif
 {
+
     int cap = CAP;
     double lb_util = UTIL_LOWER_BOUND;
     double ub_util = UTIL_UPPER_BOUND;
     double util[MAX_ITL][MAX_SIZE][MAX_TSK]; // recode of utilization (70%, 75%, 80%, 85%, 90%, 95% and 100%)
     double num;
     double sum[MAX_ITL][MAX_SIZE], temp_sum;
-    FILE* f = NULL;
     char buff[BUFSIZ];
-    int i,k,j,l,exp;
-    double p[MAX_TSK];
+    FILE* f = NULL;
     int wcet[MAX_ITL][MAX_SIZE][MAX_TSK];                           // We here limit the wcet to be integer numbers lower than 20
     int period[MAX_ITL][MAX_SIZE][MAX_TSK];
     double pd = 0;
+    double p[MAX_TSK];
     int mod;
-    //tr1::default_random_engine generator; // a random generator
+    int i,k,j,l,exp;
+    int et;
 
 #ifndef WINDOWS
-    if(argc<2)
+    if(argc>=2)
     {
-        return -1;
+        cap = atoi(argv[1]);
     }
-
-    cap = atoi(argv[1]);
 
 #endif
 
     srand((unsigned)time(NULL));
-    
     //Generate the Utilization
     for (k = 0; k < MAX_ITL; k++)// k corresponds to each utilization interval: k=0 -> 70%, k=1 -> 75%, .. and so on.
     {
         for (exp = 1; exp <= MAX_SIZE; exp += 1) 
         {
-            //exponential_distribution<double> utildis((double)exp);
-            i = 0;
+            i=0;
+            empty_double(p,MAX_TSK);    
+            //double p[MAX_TSK] = {}; // temperary utilization
             sum[k][exp - 1] = 0;
             temp_sum = 0;
             while (i < MAX_TSK) // i correspods to each task
             {
-                num = ceil(exp_dist(exp,rand()) * 10) / 10.0;// For convenience of multiprocessor scheduling, the utilizations are expected to be rounded, example: 0.1, 0.2, ... and so on.
+                num = ceil(exp_dist(exp,rand()) * 10) / 10.0;
                 if (num >= lb_util && num <= ub_util) // here we just limit the acceptable utilization among lb_util to ub_util in order to increase the number of tasks
                 {                             // If we accept a larger utilization, then the number of tasks is just a few.
                     temp_sum = sum[k][exp - 1] + num;      // temporary sum of utilization
@@ -104,26 +108,28 @@ int main(int argc,char** argv)
             }
         }
     }
+    
         //Generate WCET
-    //uniform_int_distribution<int> wcetdis(1, 20); // Wcet is generated using an uniform distribution
-
     for (i = 0; i < MAX_ITL; i++)
     {
         printf("Case %d%%: generating\n",70 + 5*i);
         for (k = 0; k < MAX_SIZE; k++)
         {
-            printf("Set %d generating\n",k);
+            printf(" Set %d generating\n",k);
             for (j = 0; j < MAX_TSK; j++)
             {
                 if (util[i][k][j]*10 > 0)
                 {
+
                     wcet[i][k][j] = UNIDIS(1,rand(),20);
+                    //wcet[i][k][j] = wcetdis(generator);
                     pd = wcet[i][k][j] / util[i][k][j];
                     mod = (int)(pd * 10);
                     while (mod % 10)
                     {
-                        printf("Task %d: mod= %d wcet=  %d util=%f  period=  %f\n",j,mod,wcet[i][k][j],util[i][k][j],pd );
+                        //cout << "Task "<< j <<": mod= "<< mod <<" wcet=  " << wcet[i][k][j]<<" util=" << util[i][k][j] <<" period=  "<< pd << endl;
                         //getch();
+                        //wcet[i][k][j] = wcetdis(generator);
                         wcet[i][k][j] = UNIDIS(1,rand(),20);
                         pd = wcet[i][k][j] / util[i][k][j];
                         mod = (int)(pd * 10);
@@ -136,9 +142,9 @@ int main(int argc,char** argv)
                 else
                     wcet[i][k][j] = 0;
             }
-            printf(" Set %d: done\n",k);
+            //cout << " Set " << k << ": done" << endl;
         }
-        printf("Case %d: done\n",70 + 5*i);
+        //cout << "Case " << 70 + 5*i << ": done" << endl;
     }
     
     //  //// Similarly to WCET, we can generate ET and period
@@ -177,43 +183,41 @@ int main(int argc,char** argv)
     //  }
     //}
     // print the generated utilizations to the terminal screen
-    printf("Generated data:  ");
-    //cout << "Generated data:  " << endl;
-    for (i = 0; i < MAX_ITL; i++)
+    /*cout << "Generated data:  " << endl;
+    for (int i = 0; i < MAX_ITL; i++)
     {
-        printf("%d%%:\n",70 + i * 5);
-        for (k = 0; k < MAX_SIZE; k++)
+        cout << 70 + i * 5 << "%:" << endl;
+        for (int k = 0; k < MAX_SIZE; k++)
         {
-            printf("Set %d: %f: ",k,sum[i][k]);
-
-            for (j = 0; util[i][k][j] > 0; j++)
+            cout << "Set " << k << ": " << sum[i][k] << ": ";
+            for (int j = 0; util[i][k][j] > 0; j++)
             {
-                printf("%f ",util[i][k][j]);
+                cout << util[i][k][j] << " ";
             }
-            printf("\n");
-            printf("      wcet: ");
-            for (j = 0; wcet[i][k][j] > 0; j++)
+            cout << endl;
+            cout << "      wcet: ";
+            for (int j = 0; wcet[i][k][j] > 0; j++)
             {
-                printf("%d ",wcet[i][k][j]);
+                cout << wcet[i][k][j] << " ";
             }
-            printf("\n");
-            printf("    period: ");
-            for (j = 0; period[i][k][j] > 0; j++)
+            cout << endl;
+            cout << "    period: ";
+            for (int j = 0; period[i][k][j] > 0; j++)
             {
-                printf("%d ",period[i][k][j]);
+                cout << period[i][k][j] << " ";
             }
-            printf("\n");
+            //cout << endl;
+            cout << endl;
         }
-        printf("\n");
-    }
+        cout << endl;
+    }*/
     // Create output data
-    printf("==================================================\n");
-    int et;
+
     for (i = 0; i < MAX_ITL; i++)
     {
         for (k = 0; k < MAX_SIZE; k++)
         {
-            snprintf(buff,BUFSIZ,"periodic.cfg.%d-%d",70+5*i,k+1);
+            sprintf(buff,"periodic.cfg.%d-%d",70 + 5 * i,k+1);
             f=fopen(buff,"w+");
             fprintf(f,"#Target Periodic Utilization = %d%%\n",70+5*i);
             fprintf(f,"#tid\twcet\tet\tprd\treq_tim\n");
@@ -225,6 +229,7 @@ int main(int argc,char** argv)
                     {
                         et = (int)UNIDIS(1,rand(),wcet[i][k][j]);
                         fprintf(f,"%d\t%d\t%d\t%d\t%d\n",j,wcet[i][k][j],et,period[i][k][j],l*period[i][k][j]);
+                        //outputfile << j << "\t" << wcet[i][k][j] << "\t" << et << "\t" << period[i][k][j] << "\t" << l*period[i][k][j] << endl;
                     }
                 }
             }
@@ -275,7 +280,7 @@ int main(int argc,char** argv)
     //  ap_util_sum = 0;
     //  ap_rel = 0;
     //  ofstream outputfile;
-    //  filename = "aperiodic.cfg." + to_string(cap) + "-" + to_string(i+1);
+    //  filename = "aperiodic.cfg." + to_string(CAP) + "-" + to_string(i+1);
     //  outputfile.open(filename.c_str());
     //  text_line_positions = outputfile.tellp();
     //  outputfile << "\#Target Aperiodic Tasks" << endl;
@@ -317,6 +322,8 @@ int main(int argc,char** argv)
     //  
     //}
 
-    printf("end!\n");
+    //cout << "end!" << endl;
+    //system("pause");
     return 0;
 }
+
