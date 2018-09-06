@@ -1,7 +1,7 @@
 
 
 all:
-	g++ -o DataGenerator DataGenerator.cpp
+	gcc -o DataGenerator DataGenerator.c
 	mv DataGenerator ../
 
 clean:
