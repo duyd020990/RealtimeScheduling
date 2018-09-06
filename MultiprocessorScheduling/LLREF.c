@@ -20,6 +20,10 @@ extern unsigned long long period[MAX_TASKS];
 extern unsigned long long tick;
 extern unsigned wcet[MAX_TASKS];
 
+extern int has_new_task;
+extern int has_new_instance;
+extern int has_task_finished;
+
 int release_time[TICKS];
 int assign_history[MAX_TASKS];
 
@@ -151,28 +155,44 @@ int LLREF_check_Second_Event(TCB** rq)
 
     if(rq==NULL || *rq==NULL){return 0;}
 
+    if(has_task_finished)
+    {
+        has_task_finished = 0;
+#ifdef DEBUG
+        fprintf(stderr,"has task finished,in LLREF_check_Second_Event\n");
+#endif
+        return 1;
+    }
+
     for(i=0;i<PROCESSOR_NUM;i++)
     {
-        // Some processors are idleing, might because some task get complete.
-        if(_kernel_runtsk[i]==NULL){return 1;}
+        if(_kernel_runtsk[i]==NULL){continue;}
+        ll = (LLREF_LRECT*)(_kernel_runtsk[i]->something_else);
+        if(ll == NULL){fprintf(stderr,"Err with ll,in check second event\n");while(1);}
+        
+        lrect = ll->local_remaining_execution_time;
+        if(lrect<=0)
+        {
+#ifdef DEBUG
+            fprintf(stderr,"tid lrect exhausted %d\n",_kernel_runtsk[i]->tid);
+#endif
+            return 1;
+        }
     }
 
     for(p=*rq;p;p=p->next)
     {
-        ll = (LLREF_LRECT*)(p->something_else);
-        if(ll == NULL){fprintf(stderr,"Err with ll,in check second event\n");}
+        ll = (LLREF_LRECT*)(_kernel_runtsk[i]->something_else);
+        if(ll == NULL){fprintf(stderr,"Err with ll,in check second event\n");while(1);}
         
         lrect = ll->local_remaining_execution_time;
-        //The Event B in second Event
-        if(lrect<=(double)0)
-        {
-            //fprintf(stderr,"tid %d exausted\n",ll->tcb->tid);
-            return 1;
-        }
+
         //The Event C in second Event
-        else if((unsigned long long)lrect >= rest_time_interval)
+        if((unsigned long long)lrect >= rest_time_interval)
         {
-            //fprintf(stderr,"tid %d hit the bound\n",ll->tcb->tid);
+#ifdef DEBUG
+            fprintf(stderr,"tid %d hit the bound\n",p->tid);
+#endif
             return 1;
         }
     }
@@ -256,7 +276,7 @@ void LLREF_reorganize_function(TCB** rq)
 #ifdef DEBUG
     fprintf(stderr,"At tick: %llu\n",tick);
     fprintf(stderr,"in reorganize\n");
-    getchar();
+    //getchar();
 #endif
 
     // later we will call the scheduler

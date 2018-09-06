@@ -70,6 +70,7 @@ unsigned long long overhead_alpha_total;
 
 int has_new_task;
 int has_new_instance;
+int has_task_finished;
 
 
 /* Variables for TBS95 */////////////////One day,I will remove these things
@@ -495,6 +496,7 @@ void Initialize ( void )
 
     has_new_instance        = 0;
     has_new_task            = 0;
+    has_task_finished       = 0;
 
     for(i=0;i<PROCESSOR_NUM;i++)
     {
@@ -643,6 +645,7 @@ void Job_exit ( const char *s, int rr, int processor_id) /* rr: resource reclaim
         delete_queue ( &ap_ready_queue,_kernel_runtsk[processor_id]);
     }
     _kernel_runtsk[processor_id] = NULL;
+    has_task_finished = 1;
     return;
 }
 
