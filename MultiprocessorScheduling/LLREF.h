@@ -7,7 +7,7 @@
 
 typedef struct llref_lrect
 {
-    double local_remaining_execution_time;
+    int local_remaining_execution_time;
     unsigned r_wcet;
 }LLREF_LRECT;
 
