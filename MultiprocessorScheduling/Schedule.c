@@ -318,14 +318,14 @@ void run_simulation(char* s,SCHEDULING_ALGORITHM sa)
     TCB  *entry                        = NULL;
 
     if(sa.scheduling_initialize==NULL || sa.scheduling==NULL || \
-       sa.insert_OK==NULL || sa.reorganize_function==NULL)
+       sa.insert_OK==NULL || sa.reorganize_function==NULL || sa.scheduling_exit==NULL)
     {
         return;
     }
     scheduling_initialize = (void (*)())sa.scheduling_initialize;
     scheduling            = (void (*)())sa.scheduling;
     reorganize_function   = (void (*)(TCB**))sa.reorganize_function;
-    if(sa.scheduling_exit!=NULL){scheduling_exit = (void (*)())sa.scheduling_exit;}
+    scheduling_exit       = (void (*)())sa.scheduling_exit;
     
     Initialize ();
     scheduling_initialize();

@@ -67,11 +67,11 @@ typedef struct tcb {
 
 typedef struct 
 {
-    void* scheduling_initialize;    
+    void* scheduling_initialize;
+    void* scheduling_exit;    
     void* scheduling;
     void* insert_OK;
     void* reorganize_function;
-
 }SCHEDULING_ALGORITHM;
 
 

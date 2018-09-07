@@ -8,7 +8,7 @@
 #include "Schedule.h"
 #include "EDF.h"
 
-#define DEBUG
+//#define DEBUG
 
 
 extern TCB* _kernel_runtsk[PROCESSOR_NUM];
@@ -61,17 +61,18 @@ unsigned long long next_release_time()
 /*
   Here we will use the tick and array release_time
 */
-double local_remaining_execution_time(unsigned r_wcet,unsigned long long part_time_interval,unsigned long long period)
+double local_remaining_execution_time(unsigned r_wcet,unsigned long long part_time_interval,unsigned long long period,double rest_part_of_lrect)
 {
     double lrect;
     lrect = ((double)r_wcet*(rest_time_interval))/period; 
 #ifdef DEBUG
-    fprintf(f_debug,"%u\t%llu\t%llu\t%f\n",r_wcet,
+    fprintf(f_debug,"%u\t%llu\t%llu\t%f\t%f\n",r_wcet,
                                           part_time_interval,
                                           period,
-                                          lrect);
+                                          lrect,
+                                          rest_part_of_lrect);
 #endif
-    return lrect;
+    return lrect+rest_part_of_lrect;
 }
 
 /*
@@ -98,16 +99,16 @@ LLREF_LRECT* lrect_node_init(TCB* tcb,unsigned long long rest_time_interval)
     ll = (LLREF_LRECT*)malloc(sizeof(LLREF_LRECT));
     if(ll == NULL)
     {
-        fprintf(f_debug,"Err with malloc *llref_node_init*\n");
+        fprintf(stderr,"Err with malloc *llref_node_init*\n");
         return NULL;
     }
 
     ll->r_wcet                         = wcet[tcb->tid];
-    ll->local_remaining_execution_time = local_remaining_execution_time(wcet[tcb->tid],rest_time_interval,period[tcb->tid]);
-
+    ll->local_remaining_execution_time = local_remaining_execution_time(wcet[tcb->tid],rest_time_interval,period[tcb->tid],0.0);
     return ll;
 }
 
+#ifdef DEBUG
 void print_lrect_queue()
 {
     TCB* p=p_ready_queue;
@@ -129,6 +130,7 @@ void print_lrect_queue()
     }
     fprintf(f_debug,"====================================================================\n");
 }
+#endif
 
 void LLREF_reduce_lrect()
 {
@@ -140,7 +142,7 @@ void LLREF_reduce_lrect()
         if(_kernel_runtsk[i]==NULL){continue;}
 
         ll = (LLREF_LRECT*)_kernel_runtsk[i]->something_else;
-        if(ll == NULL){fprintf(f_debug,"Should not be NULL, in LLREF reduce lrect\n");return;}
+        if(ll == NULL){fprintf(stderr,"Should not be NULL, in LLREF reduce lrect\n");return;}
 
         ll->r_wcet--;
         ll->local_remaining_execution_time-=1;
@@ -182,7 +184,7 @@ int LLREF_check_Second_Event(TCB** rq)
     {
         if(_kernel_runtsk[i]==NULL){continue;}
         ll = (LLREF_LRECT*)(_kernel_runtsk[i]->something_else);
-        if(ll == NULL){fprintf(f_debug,"Err with ll,in check second event\n");while(1);}
+        if(ll == NULL){fprintf(stderr,"Err with ll,in check second event\n");while(1);}
         
         lrect = ll->local_remaining_execution_time;
         if(lrect<=0)
@@ -196,8 +198,8 @@ int LLREF_check_Second_Event(TCB** rq)
 
     for(p=*rq;p;p=p->next)
     {
-        ll = (LLREF_LRECT*)(_kernel_runtsk[i]->something_else);
-        if(ll == NULL){fprintf(f_debug,"Err with ll,in check second event\n");while(1);}
+        ll = (LLREF_LRECT*)(p->something_else);
+        if(ll == NULL){fprintf(stderr,"Err with ll,in check second event\n");while(1);}
         
         lrect = ll->local_remaining_execution_time;
 
@@ -226,9 +228,9 @@ void LLREF_scheduling_initialize()
     time_interval      = 0;
     rest_time_interval = 0;
     LLREF_involke      = 0;
-
+#ifdef DEBUG
     f_debug = fopen("LLREF_debug.csv","w+");
-
+#endif
     for(i=0;i<MAX_TASKS;i++)
     {
         assign_history[i] = -1;
@@ -285,7 +287,7 @@ void LLREF_reorganize_function(TCB** rq)
             }
             else
             {
-                ll->local_remaining_execution_time = local_remaining_execution_time(p->wcet,time_interval,period[p->tid]);
+                ll->local_remaining_execution_time = local_remaining_execution_time(p->wcet,time_interval,period[p->tid],ll->local_remaining_execution_time);
             }
         }
     }
@@ -392,5 +394,7 @@ void LLREF_scheduling()
 
 void LLREF_scheduling_exit()
 {
+#ifdef DEBUG
     fclose(f_debug);
+#endif
 }

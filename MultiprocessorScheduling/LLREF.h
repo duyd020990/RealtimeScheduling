@@ -7,7 +7,7 @@
 
 typedef struct llref_lrect
 {
-    int local_remaining_execution_time;
+    double local_remaining_execution_time;
     unsigned r_wcet;
 }LLREF_LRECT;
 
@@ -18,5 +18,7 @@ void LLREF_scheduling();
 int LLREF_insert_OK(TCB*,TCB*);
 
 void LLREF_reorganize_function(TCB** rq);
+
+void LLREF_scheduling_exit();
 
 #endif
