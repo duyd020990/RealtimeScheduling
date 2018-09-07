@@ -23,6 +23,7 @@ extern unsigned wcet[MAX_TASKS];
 extern int has_new_task;
 extern int has_new_instance;
 extern int has_task_finished;
+extern int has_task_missed;
 
 int release_time[TICKS];
 int assign_history[MAX_TASKS];
@@ -32,6 +33,10 @@ unsigned long long rest_time_interval;
 
 int LLREF_involke;
 
+#ifdef DEBUG
+FILE* f_debug;
+#endif
+
 
 // This running queue for those Multiprocessor Real-time Scheduling,
 // Since the migration only occurse in Multiproccessor platform
@@ -39,6 +44,7 @@ TCB *running_queue[PROCESSOR_NUM]; // A running queue for each processor
 
 SCHEDULING_ALGORITHM LLREF_sa={
     .scheduling_initialize = LLREF_scheduling_initialize,
+    .scheduling_exit       = LLREF_scheduling_exit,
     .scheduling            = LLREF_scheduling,
     .insert_OK             = LLREF_insert_OK,
     .reorganize_function   = LLREF_reorganize_function
@@ -55,17 +61,17 @@ unsigned long long next_release_time()
 /*
   Here we will use the tick and array release_time
 */
-int local_remaining_execution_time(unsigned r_wcet,unsigned long long part_time_interval,unsigned long long period)
+double local_remaining_execution_time(unsigned r_wcet,unsigned long long part_time_interval,unsigned long long period)
 {
     double lrect;
     lrect = ((double)r_wcet*(rest_time_interval))/period; 
 #ifdef DEBUG
-    fprintf(stderr,"%u\t%llu\t%llu\t%f\n",r_wcet,
+    fprintf(f_debug,"%u\t%llu\t%llu\t%f\n",r_wcet,
                                           part_time_interval,
                                           period,
                                           lrect);
 #endif
-    return round(lrect);
+    return lrect;
 }
 
 /*
@@ -92,7 +98,7 @@ LLREF_LRECT* lrect_node_init(TCB* tcb,unsigned long long rest_time_interval)
     ll = (LLREF_LRECT*)malloc(sizeof(LLREF_LRECT));
     if(ll == NULL)
     {
-        fprintf(stderr,"Err with malloc *llref_node_init*\n");
+        fprintf(f_debug,"Err with malloc *llref_node_init*\n");
         return NULL;
     }
 
@@ -106,13 +112,13 @@ void print_lrect_queue()
 {
     TCB* p=p_ready_queue;
 
-    fprintf(stderr,"=============================ready queue=============================\n");
-    fprintf(stderr,"addre\t\titd\tret\tret\tlrect\tinterval period\n");
+    fprintf(f_debug,"=============================ready queue=============================\n");
+    fprintf(f_debug,"addre\t\titd\tret\tret\tlrect\tinterval period\n");
     while(p)
     {
-        fprintf(stderr,"%p\t",p);
+        fprintf(f_debug,"%p\t",p);
         if(p->something_else==NULL){p = p->next;continue;}
-        fprintf(stderr,"%d\t%u\t%u\t%d\t%llu\t%llu\n",
+        fprintf(f_debug,"%d\t%u\t%u\t%f\t%llu\t%llu\n",
                                               p->tid,
                                               p->et,
                                               ((LLREF_LRECT*)(p->something_else))->r_wcet,
@@ -121,7 +127,7 @@ void print_lrect_queue()
                                               period[p->tid]);
         p = p->next;
     }
-    fprintf(stderr,"====================================================================\n");
+    fprintf(f_debug,"====================================================================\n");
 }
 
 void LLREF_reduce_lrect()
@@ -134,10 +140,10 @@ void LLREF_reduce_lrect()
         if(_kernel_runtsk[i]==NULL){continue;}
 
         ll = (LLREF_LRECT*)_kernel_runtsk[i]->something_else;
-        if(ll == NULL){fprintf(stderr,"Should not be NULL, in LLREF reduce lrect\n");return;}
+        if(ll == NULL){fprintf(f_debug,"Should not be NULL, in LLREF reduce lrect\n");return;}
 
         ll->r_wcet--;
-        ll->local_remaining_execution_time--;
+        ll->local_remaining_execution_time-=1;
     }     
 }
 
@@ -155,11 +161,19 @@ int LLREF_check_Second_Event(TCB** rq)
 
     if(rq==NULL || *rq==NULL){return 0;}
 
+    if(has_task_missed)
+    {
+        has_task_missed = 0;
+#ifdef DEBUG
+        fprintf(f_debug,"MISSED\n");
+#endif
+    }
+    
     if(has_task_finished)
     {
         has_task_finished = 0;
 #ifdef DEBUG
-        fprintf(stderr,"has task finished,in LLREF_check_Second_Event\n");
+        fprintf(f_debug,"has task finished,in LLREF_check_Second_Event\n");
 #endif
         return 1;
     }
@@ -168,13 +182,13 @@ int LLREF_check_Second_Event(TCB** rq)
     {
         if(_kernel_runtsk[i]==NULL){continue;}
         ll = (LLREF_LRECT*)(_kernel_runtsk[i]->something_else);
-        if(ll == NULL){fprintf(stderr,"Err with ll,in check second event\n");while(1);}
+        if(ll == NULL){fprintf(f_debug,"Err with ll,in check second event\n");while(1);}
         
         lrect = ll->local_remaining_execution_time;
         if(lrect<=0)
         {
 #ifdef DEBUG
-            fprintf(stderr,"tid lrect exhausted %d\n",_kernel_runtsk[i]->tid);
+            fprintf(f_debug,"tid lrect exhausted %d\n",_kernel_runtsk[i]->tid);
 #endif
             return 1;
         }
@@ -183,7 +197,7 @@ int LLREF_check_Second_Event(TCB** rq)
     for(p=*rq;p;p=p->next)
     {
         ll = (LLREF_LRECT*)(_kernel_runtsk[i]->something_else);
-        if(ll == NULL){fprintf(stderr,"Err with ll,in check second event\n");while(1);}
+        if(ll == NULL){fprintf(f_debug,"Err with ll,in check second event\n");while(1);}
         
         lrect = ll->local_remaining_execution_time;
 
@@ -191,7 +205,7 @@ int LLREF_check_Second_Event(TCB** rq)
         if((unsigned long long)lrect >= rest_time_interval)
         {
 #ifdef DEBUG
-            fprintf(stderr,"tid %d hit the bound\n",p->tid);
+            fprintf(f_debug,"tid %d hit the bound\n",p->tid);
 #endif
             return 1;
         }
@@ -212,6 +226,8 @@ void LLREF_scheduling_initialize()
     time_interval      = 0;
     rest_time_interval = 0;
     LLREF_involke      = 0;
+
+    f_debug = fopen("LLREF_debug.csv","w+");
 
     for(i=0;i<MAX_TASKS;i++)
     {
@@ -243,20 +259,20 @@ void LLREF_reorganize_function(TCB** rq)
             return;
         }
 #ifdef DEBUG
-        fprintf(stderr,"Event 2 happened\n");
+        fprintf(f_debug,"Event 2 happened\n");
 #endif
     }
     else
     {
 
 #ifdef DEBUG
-        fprintf(stderr, "Event 1 happened\n" );
+        fprintf(f_debug, "Event 1 happened\n" );
 #endif   
         
         rest_time_interval = time_interval = next_release_time();
 
 #ifdef DEBUG
-        fprintf(stderr,"time_interval %llu\n",time_interval);
+        fprintf(f_debug,"time_interval %llu\n",time_interval);
 #endif  
         
         for(p=*rq;p;p=p->next)
@@ -269,13 +285,14 @@ void LLREF_reorganize_function(TCB** rq)
             }
             else
             {
-                ll->local_remaining_execution_time = local_remaining_execution_time(ll->r_wcet,rest_time_interval,period[p->tid]);
+                ll->local_remaining_execution_time = local_remaining_execution_time(p->wcet,time_interval,period[p->tid]);
             }
         }
     }
+
 #ifdef DEBUG
-    fprintf(stderr,"At tick: %llu\n",tick);
-    fprintf(stderr,"in reorganize\n");
+    fprintf(f_debug,"At tick: %llu\n",tick);
+    fprintf(f_debug,"in reorganize\n");
     //getchar();
 #endif
 
@@ -290,7 +307,7 @@ void LLREF_reorganize_function(TCB** rq)
             ll1 = (LLREF_LRECT*)(p->something_else);
             ll2 = (LLREF_LRECT*)(q->something_else);
 
-            if(ll1->local_remaining_execution_time<ll2->local_remaining_execution_time){LLREF_swap(p,q);}
+            if(ll1->local_remaining_execution_time < ll2->local_remaining_execution_time){LLREF_swap(p,q);}
         }
     }
 }
@@ -309,7 +326,7 @@ void LLREF_scheduling()
     int  total_assigned          = 0;
     TCB* p                       = NULL;
     TCB* ap                      = NULL;
-    //fprintf(stderr,"ss\t");
+    //fprintf(f_debug,"ss\t");
 
     if(p_ready_queue == NULL){return;}
 
@@ -317,7 +334,7 @@ void LLREF_scheduling()
     LLREF_involke = 0;
 
 #ifdef DEBUG
-    fprintf(stderr,"in scheduling\n");
+    fprintf(f_debug,"in scheduling\n");
     print_lrect_queue();
 #endif
 
@@ -367,8 +384,13 @@ void LLREF_scheduling()
     for(i=0;i<PROCESSOR_NUM;i++)
     {
         if(_kernel_runtsk[i]==NULL){continue;}
-        fprintf(stderr,"%d\t%d\n",i,_kernel_runtsk[i] -> tid);
+        fprintf(f_debug,"%d\t%d\n",i,_kernel_runtsk[i] -> tid);
     }
 #endif
 
+}
+
+void LLREF_scheduling_exit()
+{
+    fclose(f_debug);
 }

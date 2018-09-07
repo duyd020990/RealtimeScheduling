@@ -71,6 +71,7 @@ unsigned long long overhead_alpha_total;
 int has_new_task;
 int has_new_instance;
 int has_task_finished;
+int has_task_missed;
 
 
 /* Variables for TBS95 */////////////////One day,I will remove these things
@@ -200,10 +201,10 @@ int main ( int argc, char *argv[] )
 #endif
 
     fclose ( p_cfp );
-
     if ( p_util > UTIL_UPPERBOUND ) 
     {
-        printf ( "Cannot execute tasks over %2f%% utilization\n",UTIL_UPPERBOUND*100 );
+        fprintf(stderr,"Cannot execute tasks over %2f%% utilization\nCurrent ultilization: %2f%%\n",UTIL_UPPERBOUND*100,p_util);
+        printf ( "Cannot execute tasks over %2f%% utilization\nCurrent ultilization: %2f%%\n",UTIL_UPPERBOUND*100,p_util);
         return 0;
     }
 
@@ -313,6 +314,7 @@ void run_simulation(char* s,SCHEDULING_ALGORITHM sa)
     void (*scheduling)()               = NULL;
     void (*reorganize_function)(TCB**) = NULL;
     void (*scheduling_initialize)()    = NULL;
+    void (*scheduling_exit)()          = NULL;
     TCB  *entry                        = NULL;
 
     if(sa.scheduling_initialize==NULL || sa.scheduling==NULL || \
@@ -323,6 +325,7 @@ void run_simulation(char* s,SCHEDULING_ALGORITHM sa)
     scheduling_initialize = (void (*)())sa.scheduling_initialize;
     scheduling            = (void (*)())sa.scheduling;
     reorganize_function   = (void (*)(TCB**))sa.reorganize_function;
+    if(sa.scheduling_exit!=NULL){scheduling_exit = (void (*)())sa.scheduling_exit;}
     
     Initialize ();
     scheduling_initialize();
@@ -376,6 +379,7 @@ void run_simulation(char* s,SCHEDULING_ALGORITHM sa)
             }
         }
     }
+    scheduling_exit();
 }
 
 void insert_queue( TCB **rq,TCB *entry,void* function)
@@ -497,6 +501,7 @@ void Initialize ( void )
     has_new_instance        = 0;
     has_new_task            = 0;
     has_task_finished       = 0;
+    has_task_missed         = 0;
 
     for(i=0;i<PROCESSOR_NUM;i++)
     {
@@ -620,6 +625,7 @@ void Job_exit ( const char *s, int rr, int processor_id) /* rr: resource reclaim
 
     if ( _kernel_runtsk[processor_id] -> a_dl < tick ) 
     {
+        has_task_missed = 1;
         fprintf( stderr, "\n# MISS: %s: tick=%lld: DL=%lld: TID=%d: INST_NO=%d, WCET=%d, ET=%d, req_tim=%lld\n",
            s, tick, _kernel_runtsk[processor_id]->a_dl, _kernel_runtsk[processor_id]->tid, _kernel_runtsk[processor_id]->inst_no,
            wcet[_kernel_runtsk[processor_id]->tid], _kernel_runtsk[processor_id]->initial_et, _kernel_runtsk[processor_id]->req_tim );
