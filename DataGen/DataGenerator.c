@@ -47,28 +47,24 @@ int main(int argc,char** argv)
 #endif
 {
 
-    int cap = CAP;
     double lb_util = UTIL_LOWER_BOUND;
     double ub_util = UTIL_UPPER_BOUND;
     double util[MAX_ITL][MAX_SIZE][MAX_TSK]; // recode of utilization (70%, 75%, 80%, 85%, 90%, 95% and 100%)
     double num;
     double sum[MAX_ITL][MAX_SIZE], temp_sum;
-    char buff[BUFSIZ];
-    FILE* f = NULL;
+    double pd=0,p[MAX_TSK];
+    int cap = CAP;
+    int mod,i,k,j,l,exp,et;
     int wcet[MAX_ITL][MAX_SIZE][MAX_TSK];                           // We here limit the wcet to be integer numbers lower than 20
     int period[MAX_ITL][MAX_SIZE][MAX_TSK];
-    double pd = 0;
-    double p[MAX_TSK];
-    int mod;
-    int i,k,j,l,exp;
-    int et;
+    FILE* f = NULL;
+    char buff[BUFSIZ];
 
 #ifndef WINDOWS
     if(argc>=2)
     {
         cap = atoi(argv[1]);
     }
-
 #endif
 
     srand((unsigned)time(NULL));
@@ -78,8 +74,7 @@ int main(int argc,char** argv)
         for (exp = 1; exp <= MAX_SIZE; exp += 1) 
         {
             i=0;
-            empty_double(p,MAX_TSK);    
-            //double p[MAX_TSK] = {}; // temperary utilization
+            empty_double(p,MAX_TSK);
             sum[k][exp - 1] = 0;
             temp_sum = 0;
             while (i < MAX_TSK) // i correspods to each task
@@ -127,15 +122,10 @@ int main(int argc,char** argv)
                     mod = (int)(pd * 10);
                     while (mod % 10)
                     {
-                        //cout << "Task "<< j <<": mod= "<< mod <<" wcet=  " << wcet[i][k][j]<<" util=" << util[i][k][j] <<" period=  "<< pd << endl;
-                        //getch();
-                        //wcet[i][k][j] = wcetdis(generator);
                         wcet[i][k][j] = UNIDIS(1,rand(),20);
                         pd = wcet[i][k][j] / util[i][k][j];
                         mod = (int)(pd * 10);
                     }
-                    //cout << "Done: wcet=  " << wcet[i][k][j] << " util=" << util[i][k][j] << " period=  " << pd << endl;
-                    //getch();
                     period[i][k][j] = pd;
                 }
                     
@@ -229,7 +219,6 @@ int main(int argc,char** argv)
                     {
                         et = (int)UNIDIS(1,rand(),wcet[i][k][j]);
                         fprintf(f,"%d\t%d\t%d\t%d\t%d\n",j,wcet[i][k][j],et,period[i][k][j],l*period[i][k][j]);
-                        //outputfile << j << "\t" << wcet[i][k][j] << "\t" << et << "\t" << period[i][k][j] << "\t" << l*period[i][k][j] << endl;
                     }
                 }
             }

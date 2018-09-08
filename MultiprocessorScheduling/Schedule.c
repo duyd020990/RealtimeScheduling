@@ -60,8 +60,8 @@ unsigned p_tasks;
 unsigned ap_tasks;
 
 /* Variables for overheads estimation */
-unsigned long long migration;
-unsigned long long overhead_dl;
+unsigned long long migration;            // For recording the migration,but not used in uniprocessor case
+unsigned long long overhead_dl;          // For recording the overhead
 unsigned long long overhead_dl_max;
 unsigned long long overhead_dl_total;
 unsigned long long overhead_alpha;
@@ -72,16 +72,6 @@ int has_new_task;
 int has_new_instance;
 int has_task_finished;
 int has_task_missed;
-
-
-/* Variables for TBS95 */////////////////One day,I will remove these things
-unsigned long long  di_1, fi_1;
-
-/* Variables for VRA */
-unsigned long long  max_used_dl;
-unsigned long long  used_dl[PROCESSOR_NUM][TICKS];
-unsigned int        last_empty[PROCESSOR_NUM];                         /* 最後の空スロット番号                           */
-
 
 int main ( int argc, char *argv[] )
 {
@@ -220,8 +210,6 @@ int main ( int argc, char *argv[] )
 
     run_simulation("RM",RM_sa);
   
-    printf ( ", %lf", aperiodic_response_time );
-  
     fprintf ( ovhd_dl_max_fp,   ", %llu", overhead_dl_max );
     fprintf ( ovhd_dl_total_fp, ", %llu", overhead_dl_total );
     fprintf ( ovhd_al_max_fp,   ", %llu", overhead_alpha_max );
@@ -229,8 +217,7 @@ int main ( int argc, char *argv[] )
 
 
 #else
-    printf ( ", ");
-
+    
     fprintf ( ovhd_dl_max_fp, "," );
     fprintf ( ovhd_dl_total_fp, "," );
     fprintf ( ovhd_al_max_fp, "," );
@@ -242,8 +229,6 @@ int main ( int argc, char *argv[] )
 
     run_simulation("LSF",LSF_sa);
     
-    printf ( ", %lf", aperiodic_response_time );
-  
     fprintf ( ovhd_dl_max_fp,   ", %llu", overhead_dl_max );
     fprintf ( ovhd_dl_total_fp, ", %llu", overhead_dl_total );
     fprintf ( ovhd_al_max_fp,   ", %llu", overhead_alpha_max );
@@ -251,8 +236,7 @@ int main ( int argc, char *argv[] )
 
 
 #else
-    printf ( ", ");
-
+    
     fprintf ( ovhd_dl_max_fp  , "," );
     fprintf ( ovhd_dl_total_fp, "," );
     fprintf ( ovhd_al_max_fp  , "," );
@@ -264,15 +248,12 @@ int main ( int argc, char *argv[] )
 
     run_simulation("EDF",EDF_sa);
 
-    printf ( ", %lf", aperiodic_response_time );
-  
     fprintf ( ovhd_dl_max_fp,   ", %llu", overhead_dl_max );
     fprintf ( ovhd_dl_total_fp, ", %llu", overhead_dl_total );
     fprintf ( ovhd_al_max_fp,   ", %llu", overhead_alpha_max );
     fprintf ( ovhd_al_total_fp, ", %llu", overhead_alpha_total );
 #else
-    printf ( ", ");
-
+    
     fprintf ( ovhd_dl_max_fp  , "," );
     fprintf ( ovhd_dl_total_fp, "," );
     fprintf ( ovhd_al_max_fp  , "," );
@@ -282,15 +263,12 @@ int main ( int argc, char *argv[] )
 #ifdef LLREF
 
     run_simulation("LLREF",LLREF_sa);
-
-    printf ( ", %lf", aperiodic_response_time );
   
     fprintf ( ovhd_dl_max_fp,   ", %llu", overhead_dl_max );
     fprintf ( ovhd_dl_total_fp, ", %llu", overhead_dl_total );
     fprintf ( ovhd_al_max_fp,   ", %llu", overhead_alpha_max );
     fprintf ( ovhd_al_total_fp, ", %llu", overhead_alpha_total );
 #else    
-    printf ( ", ");
 
     fprintf ( ovhd_dl_max_fp  , "," );
     fprintf ( ovhd_dl_total_fp, "," );
@@ -467,7 +445,7 @@ void delete_queue ( TCB **rq,TCB* tcb)
 {
     TCB* h_p;
 
-    if(rq==NULL || rq==NULL || *rq==NULL){return;}
+    if(rq==NULL || *rq==NULL || tcb==NULL){return;}
 
     h_p = tcb->prev;
     if(h_p == NULL)
@@ -496,7 +474,7 @@ void delete_queue ( TCB **rq,TCB* tcb)
 
 void Initialize ( void )
 {
-    int i,j;
+    int i;
 
     has_new_instance        = 0;
     has_new_task            = 0;
@@ -518,21 +496,6 @@ void Initialize ( void )
     p_ready_queue    = NULL;
     ap_ready_queue   = NULL;
     fifo_ready_queue = NULL;
-
-    di_1 = 0;
-    fi_1 = 0;
-    for(j=0;j<PROCESSOR_NUM;j++)
-    {
-        for ( i = 0; i < TICKS; i++ ) 
-        {
-            used_dl[j][i] = 0;
-        }   
-    }
-    for(i=0;i<PROCESSOR_NUM;i++)
-    {
-        last_empty[i]  = 0;
-    }
-    max_used_dl = 0;
 
     migration            = \
     overhead_dl          = \
@@ -567,19 +530,7 @@ void Tick_inc ( )
 {
     int i;
 
-    for(i=0;i<PROCESSOR_NUM;i++)
-    {
-        if ( _kernel_runtsk[i] == NULL )
-        {
-            last_empty[i] = tick;
-        }
-        else
-        {
-            used_dl[i][tick] = _kernel_runtsk[i] -> a_dl;
-        }
-      
-        Overhead_Record ( );
-    }
+    Overhead_Record ( );
     
     tick++;
 
