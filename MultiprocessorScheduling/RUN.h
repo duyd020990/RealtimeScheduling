@@ -28,6 +28,7 @@ typedef struct tcb_cntnr
 }TCB_CNTNR;
 
 void RUN_scheduling_initialize();
+void RUN_scheduling_exit();
 
 int RUN_insert_OK(TCB*,TCB*);
 

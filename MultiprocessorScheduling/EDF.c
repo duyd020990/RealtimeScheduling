@@ -21,7 +21,8 @@ extern unsigned long long overhead_alpha_total;
 
 SCHEDULING_ALGORITHM EDF_sa={
     .scheduling_initialize = EDF_scheduling_initialize,
-    .scheduling            = EDF_Scheduling,
+    .scheduling_exit       = EDF_scheduling_exit,
+    .scheduling            = EDF_scheduling,
     .insert_OK             = EDF_insert_OK,
     .reorganize_function   = EDF_reorganize_function,
 };
@@ -54,9 +55,11 @@ void EDF_reorganize_function(TCB** rq)
     return;
 }
 
-void EDF_Scheduling()
+void EDF_scheduling()
 {
     fprintf(stderr,"EDF\n");
     
     LSF_Scheduling();
 }
+
+void EDF_scheduling_exit(){}

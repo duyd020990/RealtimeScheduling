@@ -28,6 +28,7 @@ extern unsigned long long overhead_alpha_total;
 
 SCHEDULING_ALGORITHM LSF_sa={
     .scheduling_initialize = LSF_scheduling_initialize,
+    .scheduling_exit       = LSF_scheduling_exit,
     .scheduling            = LSF_Scheduling,
     .insert_OK             = LSF_insert_OK,
     .reorganize_function   = LSF_reorganize_function,
@@ -140,3 +141,5 @@ void LSF_Scheduling()
         }
     }
 }
+
+void LSF_scheduling_exit(){}

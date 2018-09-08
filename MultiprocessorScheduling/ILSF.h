@@ -9,8 +9,9 @@
 #define CALCULATE_THRESHOLD // this macro for calculating the dynamic threshold
 
 void ILSF_scheduling_initialize();
+void ILSF_scheduling_exit();
 
-void ILSF_Scheduling();
+void ILSF_scheduling();
 
 int ILSF_insert_OK(TCB*,TCB*);
 

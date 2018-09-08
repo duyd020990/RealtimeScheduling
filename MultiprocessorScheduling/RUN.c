@@ -29,6 +29,7 @@ TCB *running_queue[PROCESSOR_NUM]; // A running queue for each processor
 
 SCHEDULING_ALGORITHM RUN_sa = {
     .scheduling_initialize = RUN_scheduling_initialize,
+    .scheduling_exit       = RUN_scheduling_exit,
     .scheduling            = RUN_schedule,
     .insert_OK             = RUN_insert_OK,
     .reorganize_function   = RUN_reorganize_function
@@ -492,3 +493,5 @@ void RUN_schedule()
 
 
 }
+
+void RUN_scheduling_exit(){}

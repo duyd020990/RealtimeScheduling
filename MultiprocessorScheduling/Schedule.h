@@ -23,24 +23,6 @@
 #define MAX_INSTANCES  50000
 #define TICKS         100000
 
-#define  C0_cbs_Q_DIV  1
-
-/* Definitions for Adaptive TBS */
-unsigned int  C0;          /* 1st PET */
-#define       Ci   1       /* Following PET */
-
-
-/* Definitions for Virtual Release Advancing */
-#define  VRA_BOUND 100000
-
-/* Definitions for TB* / TB(n) */
-#define  ITBS_BOUND  4096
-
-/* Definitions for CBS */
-unsigned int cbs_Q;         /* average for Exponential distribution used */
-#define      cbs_T  (ceil ( (double)cbs_Q / (1.0 - p_util) ))
-
-
 /* Macros */
 #define max(a,b) ((a) > (b) ? (a) : (b))
 #define max3(a,b,c) ((a) > (b) ? ((a) > (c) ? (a) : (c)) : ((b) > (c) ? (b) : (c)))
@@ -65,6 +47,9 @@ typedef struct tcb {
     struct tcb         *prev;
 } TCB;
 
+/*
+    This is how I define a scheduling algorithm
+*/
 typedef struct 
 {
     void* scheduling_initialize;

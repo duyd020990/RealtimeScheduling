@@ -12,6 +12,7 @@ extern TCB* ap_ready_queue;
 
 SCHEDULING_ALGORITHM RM_sa={
     .scheduling_initialize = RM_scheduling_initialize,
+    .scheduling_exit       = RM_scheduling_exit,
     .scheduling            = RM_Scheduling,
     .insert_OK             = RM_insert_OK,
     .reorganize_function   = RM_reorganize_function,
@@ -73,3 +74,5 @@ void RM_Scheduling ( void )
     
   return;
 }
+
+void RM_scheduling_exit(){}

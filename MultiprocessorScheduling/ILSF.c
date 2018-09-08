@@ -17,9 +17,10 @@ unsigned long long migration;
 
 SCHEDULING_ALGORITHM ILSF_sa={
     .scheduling_initialize = ILSF_scheduling_initialize,
-    .scheduling = ILSF_Scheduling,
-    .insert_OK  = ILSF_insert_OK,
-    .reorganize_function = ILSF_reorganize_function,
+    .scheduling_exit       = ILSF_scheduling_exit,
+    .scheduling            = ILSF_scheduling,
+    .insert_OK             = ILSF_insert_OK,
+    .reorganize_function   = ILSF_reorganize_function,
 };
 
 void ILSF_scheduling_initialize()
@@ -91,7 +92,9 @@ void ILSF_reorganize_function(TCB** rq)
     return;
 }
 
-void ILSF_Scheduling()
+void ILSF_scheduling()
 {
     LSF_Scheduling();
 }
+
+void ILSF_scheduling_exit(){}
