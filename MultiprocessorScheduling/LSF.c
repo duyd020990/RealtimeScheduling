@@ -43,11 +43,13 @@ void LSF_swap(TCB *t1,TCB *t2)
 {
     TCB TCB_tmp;
 
+    overhead_dl += COMP+COMP;
     if(t1==NULL || t2==NULL)
     {
         return;
     }
 
+    overhead_dl += IADD+MEM + IADD+MEM +IADD+MEM;
     memcpy(&TCB_tmp,t1,DIFF(TCB,next));
     memcpy(t1      ,t2,DIFF(TCB,next));
     memcpy(t2,&TCB_tmp,DIFF(TCB,next));
@@ -58,6 +60,8 @@ void LSF_sort_ready_queue(TCB **rq)
     TCB* p = NULL;
     TCB* q = NULL;
     p = *rq;
+
+    overhead_dl += COMP;
     if(rq == NULL)
     {
         return;
@@ -65,9 +69,12 @@ void LSF_sort_ready_queue(TCB **rq)
 
     for(;p!=NULL;p=p->next)
     {
+        overhead_dl += IADD+COMP;
         for(q=p->next;q!=NULL;q=q->next)
         {
-        	if(LAXITY(p)>LAXITY(q))
+            overhead_dl += IADD+COMP;
+            overhead_dl += IADD+IADD + COMP + IADD+IADD;
+            if(LAXITY(p)>LAXITY(q))
             {
                 LSF_swap(p,q);
             }
@@ -77,14 +84,18 @@ void LSF_sort_ready_queue(TCB **rq)
 
 int LSF_insert_OK(TCB* t1,TCB* t2)
 {
+    overhead_dl += COMP;
    if(t1==NULL)
     {
         return 0;
     }
+    overhead_dl += COMP;
     if(t2==NULL)
     {
         return 1;
     }
+
+    overhead_dl += IADD+IADD + COMP + IADD+IADD;
     if(LAXITY(t1)<LAXITY(t2))
     {
         return 1;
@@ -110,25 +121,32 @@ void LSF_Scheduling()
 
     for(i=0;i<PROCESSOR_NUM;i++)
     {
+        overhead_dl += IADD+COMP;
+        overhead_dl += COMP;
         if(p == NULL)
         {
+            overhead_dl += COMP;
             _kernel_runtsk[i] = ap;
             if(ap!=NULL){ap = ap->next;}
         }
         else if(ap == NULL)
         {
+            overhead_dl += COMP+COMP;
             _kernel_runtsk[i] = p;
             if(p!=NULL){p = p->next;}
         }
         else
         {
+            overhead_dl += COMP;
             if(p->a_dl <= ap->a_dl)
             {
+                overhead_dl += COMP;
                 _kernel_runtsk[i] = p;
                 if(p!=NULL){p = p->next;}
             }
             else
             {
+                overhead_dl += COMP;
                 _kernel_runtsk[i] = ap;
                 if(ap!=NULL){ap = ap->next;}
             }

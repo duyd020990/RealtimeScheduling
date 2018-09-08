@@ -39,10 +39,14 @@ int EDF_insert_OK(TCB* t1,TCB* t2)
     {
         return 0;
     }
+
+    overhead_dl += COMP;
     if(t2==NULL)
     {
         return 1;
     }
+    
+    overhead_dl += COMP;
     if((t1->a_dl) < (t2->a_dl))
     {
         return 1;
