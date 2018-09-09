@@ -386,21 +386,13 @@ void SCB_reduction_tree_destory(SCB** SCB_root)
             }
         break;
 
-        case PACK:
-            SCB_reduction_tree_destory(&(scb->next));
-            SCB_reduction_tree_destory(&(scb->leaf));
-            free(scb);
-            *SCB_root = NULL;
-        break;
-            
-        case DUAL:
+        default:
             SCB_reduction_tree_destory(&(scb->next));
             SCB_reduction_tree_destory(&(scb->leaf));
             free(scb);
             *SCB_root = NULL;
         break;
     }
-    
 }
 
 void RUN_reduction_tree_unpack_by_root(SCB** SCB_root,int selected)
