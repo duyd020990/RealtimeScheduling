@@ -366,6 +366,42 @@ SCB* SCB_reduction_tree_build(TCB** rq)
     return SCB_reduction_root;
 }
 
+void SCB_reduction_tree_destory(SCB** SCB_root)
+{
+    SCB* scb = NULL;
+    TCB* tcb = NULL;
+    if(SCB_root==NULL || *SCB_root==NULL){return;}
+    
+    scb = *SCB_root;
+
+    switch(scb->is_pack)
+    {
+        case LEAF:
+            SCB_reduction_tree_destory(&(scb->next));
+            tcb = scb->tcb;
+            if(tcb!=NULL)
+            {
+                tcb->something_else = NULL;
+                free(scb);
+            }
+        break;
+
+        case PACK:
+            SCB_reduction_tree_destory(&(scb->next));
+            SCB_reduction_tree_destory(&(scb->leaf));
+            free(scb);
+            *SCB_root = NULL;
+        break;
+            
+        case DUAL:
+            SCB_reduction_tree_destory(&(scb->next));
+            SCB_reduction_tree_destory(&(scb->leaf));
+            free(scb);
+            *SCB_root = NULL;
+        break;
+    }
+    
+}
 
 void RUN_reduction_tree_unpack_by_root(SCB** SCB_root,int selected)
 {
@@ -386,7 +422,7 @@ void RUN_reduction_tree_unpack_by_root(SCB** SCB_root,int selected)
             tcb_cntnr = TCB_to_TCB_CNTNR(scb->tcb);
             
             execution_queue_insert(tcb_cntnr);
-            break;
+        break;
 
         case PACK:
             if(!selected){return;}
@@ -404,11 +440,11 @@ void RUN_reduction_tree_unpack_by_root(SCB** SCB_root,int selected)
                 }
             }
             RUN_reduction_tree_unpack_by_root(&earliest_ddl_SCB,1);
-            break;
+        break;
 
         case DUAL: 
             RUN_reduction_tree_unpack_by_root(&(scb->leaf),!selected);
-            break;
+        break;
     }
 }
 
@@ -456,17 +492,13 @@ void RUN_reorganize_function(TCB** rq)
 
         SCB_reduction_tree_root = SCB_reduction_tree_build(rq);
 
-        printf("%d ",SCB_reduction_tree_root->is_pack);
-
         RUN_reduction_tree_unpack(&SCB_reduction_tree_root);
 
+        SCB_reduction_tree_destory(&SCB_reduction_tree_root);
     }
     else if(has_new_instance)
     {
         has_new_instance = 0;
-
-
-
     }
 }
 
