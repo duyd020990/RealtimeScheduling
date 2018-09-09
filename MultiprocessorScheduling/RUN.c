@@ -16,6 +16,15 @@ extern TCB* _kernel_runtsk_pre[PROCESSOR_NUM];
 extern TCB* p_ready_queue;
 extern TCB* ap_ready_queue;
 
+/* Record the overhead and migration */
+extern unsigned long long migration;            // For recording the migration,but not used in uniprocessor case
+extern unsigned long long overhead_dl;          // For recording the overhead
+extern unsigned long long overhead_dl_max;
+extern unsigned long long overhead_dl_total;
+extern unsigned long long overhead_alpha;
+extern unsigned long long overhead_alpha_max;
+extern unsigned long long overhead_alpha_total;
+
 SCB* SCB_root;
 
 TCB_CNTNR* execution_queue;
@@ -62,11 +71,14 @@ SCB* TCB_to_SCB(TCB* tcb)
 {
     SCB* scb = NULL;
 
+    overhead_dl += COMP;
     if(tcb == NULL){return NULL;}
 
+    overhead_dl += ASSIGN + MEM;
     scb = (SCB*)malloc(sizeof(SCB));
     if(scb == NULL){fprintf(stderr,"Fail to allocate the memory, in RUN TCB_to_SCB\n");return  NULL;}
 
+    overhead_dl += FDIV;
     scb->is_pack          = LEAF;
     scb->ultilization     = ((double)tcb->wcet)/period[tcb->tid];
     scb->deadline         = tcb->a_dl;
@@ -82,8 +94,10 @@ TCB_CNTNR* TCB_to_TCB_CNTNR(TCB* tcb)
 {
     TCB_CNTNR* tcb_cntnr = NULL;
 
+    overhead_dl += COMP;
     if(tcb==NULL){return NULL;}
 
+    overhead_dl += ASSIGN+MEM;
     tcb_cntnr = (TCB_CNTNR*)malloc(sizeof(TCB_CNTNR));
     if(tcb_cntnr == NULL){printf("Error with malloc,in TCB_to_TCB_CNTNR\n");return NULL;}
 
@@ -97,8 +111,10 @@ SCB* SCB_to_packed_SCB(SCB* scb)
 {
     SCB* packed_scb = NULL;
 
+    overhead_dl += COMP;
     if(scb == NULL){return NULL;}
 
+    overhead_dl += ASSIGN+MEM;
     packed_scb = (SCB*)malloc(sizeof(SCB));
     if(packed_scb == NULL){printf("Error with malloc,in SCB_to_packed_SCB\n");return NULL;}
 
@@ -117,21 +133,26 @@ int SCB_pack_fill(SCB* packed_SCB,SCB* scb)
     double total_ultilization = (double)0;
 
     // Parameter check
+    overhead_dl += COMP+COMP;
     if(packed_SCB==NULL || scb==NULL){return 0;}
 
     //Make sure this is a pack, not a dual server or leaf
+    overhead_dl += COMP;
     if(packed_SCB->is_pack != PACK)  {return 0;}
 
-    // Calculate the total ultilization,if this server put in this pack 
+    // Calculate the total ultilization,if this server put in this pack
+    overhead_dl += IADD; 
     total_ultilization = (packed_SCB->ultilization)+(scb->ultilization);
     
     //Is it available to put this server into this pack
+    overhead_dl += COMP;
     if(total_ultilization <= (double)1)
     {
         //Yes, change the ultilization of this pack
         packed_SCB->ultilization = total_ultilization;
         
         //If the new server has later deadline, then extend the deadline of this pack.
+        overhead_dl += COMP;
         if(packed_SCB->deadline < scb->deadline){packed_SCB->deadline = scb->deadline;}
         
         //New server is a "leaf" for this pack
@@ -152,12 +173,16 @@ SCB* SCB_list_build(TCB** rq)
     SCB* scb      = NULL;
     SCB* scb_list = NULL;
 
+    overhead_dl += COMP+COMP;
     if(rq==NULL || *rq==NULL){return NULL;}
 
     for(p = *rq;p;p=p->next)
     {
+        overhead_dl += IADD+COMP;
+        
         scb = TCB_to_SCB(p);
         
+        overhead_dl += COMP;
         if(scb_list == NULL){scb_list = scb;}
         else
         {
@@ -174,6 +199,7 @@ SCB* SCB_list_retrieve(SCB** scb_list)
 {
     SCB* scb = NULL;
 
+    overhead_dl += COMP+COMP;
     if(scb_list==NULL || *scb_list==NULL){return NULL;}
 
     scb       = *scb_list;
@@ -189,15 +215,18 @@ SCB* SCB_list_pack(SCB** SCB_list)
     SCB* SCB_pack        = NULL;
     SCB* packed_SCB_list = NULL;
 
+    overhead_dl += COMP+COMP;
     if(SCB_list==NULL || *SCB_list==NULL){return NULL;}
 
     // If there still are some scb server in the scb_list
     while(*SCB_list)
     {
+        overhead_dl += COMP;
         // Retrieve a server from the server list
         scb = SCB_list_retrieve(SCB_list);
 
         // This is the first element of packed_SCB_list
+        overhead_dl += COMP;
         if(packed_SCB_list == NULL)
         {
             packed_SCB_list = SCB_to_packed_SCB(scb);
@@ -207,11 +236,14 @@ SCB* SCB_list_pack(SCB** SCB_list)
             // Search for a pack so that we can put this server into this pack
             for(SCB_pack=packed_SCB_list;SCB_pack;SCB_pack=SCB_pack->next)
             {
+                overhead_dl += IADD+COMP;
                 // Good, there is a pack could contain this server
+                overhead_dl += COMP;
                 if(SCB_pack_fill(SCB_pack,scb)){break;}
             }  
 
             // Bad, no any pack could contain this server
+            overhead_dl += COMP;
             if(SCB_pack==NULL)
             {
                 SCB_pack        = SCB_to_packed_SCB(scb);
@@ -229,11 +261,14 @@ SCB* SCB_to_dual(SCB* scb)
 {
     SCB* SCB_dual = NULL;
 
+    overhead_dl += COMP;
     if(scb == NULL){printf("Error with malloc,in SCB_server_to_dual\n");return NULL;}
 
+    overhead_dl += ASSIGN+MEM;
     SCB_dual = (SCB*)malloc(sizeof(SCB));
     if(SCB_dual==NULL){printf("Error with malloc,in SCB_to_dual\n");return NULL;}
 
+    overhead_dl += FADD;
     SCB_dual->is_pack      = DUAL;
     SCB_dual->deadline     = scb->deadline;
     SCB_dual->ultilization = (double)1-(scb->ultilization);
@@ -248,8 +283,10 @@ void execution_queue_insert(TCB_CNTNR* new_tc)
 {
     TCB_CNTNR** tc = NULL;
 
+    overhead_dl += COMP;
     if(new_tc == NULL){return;}
 
+    overhead_dl += COMP;
     if(execution_queue == NULL)
     {
         execution_queue = new_tc;
@@ -258,6 +295,8 @@ void execution_queue_insert(TCB_CNTNR* new_tc)
 
     for(tc = &execution_queue;*tc;)
     {
+        overhead_dl += IADD+COMP;
+        overhead_dl += COMP;
         if(EDF_insert_OK(new_tc->tcb,(*tc)->tcb))
         {
             new_tc->next = *tc;
@@ -270,6 +309,7 @@ void execution_queue_insert(TCB_CNTNR* new_tc)
         }
     }
 
+    overhead_dl += COMP;
     if(*tc == NULL)
     {
         *tc = new_tc;
@@ -282,13 +322,16 @@ SCB* SCB_dual_list_build(SCB** packed_SCB_list)
     SCB* dual_server      = NULL;
     SCB* dual_server_list = NULL;
 
+    overhead_dl += COMP+COMP;
     if(packed_SCB_list==NULL || *packed_SCB_list==NULL){return NULL;}
 
     while(*packed_SCB_list)
     {
+        overhead_dl += COMP;
         packed_SCB = SCB_list_retrieve(packed_SCB_list);
         dual_server = SCB_to_dual(packed_SCB);
 
+        overhead_dl += COMP;
         if(dual_server_list == NULL)
         {
             dual_server_list = dual_server;
@@ -308,16 +351,20 @@ void RUN_proper_server_remove(SCB** SCB_root,SCB** SCB_list)
     SCB*  SCB_tmp = NULL;
     SCB** scb = NULL;
 
+    overhead_dl += COMP+COMP+COMP;
     if(SCB_root==NULL || SCB_list==NULL || *SCB_list==NULL){return;}
 
     for(scb = SCB_list;*scb;)
     {
+        overhead_dl += IADD+COMP;
+        overhead_dl += COMP;
         if((*scb)->ultilization == (double)1)
         {
             SCB_tmp = *scb;
             *scb = ((*scb)->next);
             SCB_tmp->next = NULL;
 
+            overhead_dl += COMP;
             if(*SCB_root == NULL){*SCB_root = SCB_tmp;}
             else
             {
@@ -339,12 +386,15 @@ SCB* SCB_reduction_tree_build(TCB** rq)
     SCB* SCB_packed_server_list = NULL;
     SCB* SCB_dual_server_list   = NULL;
 
+    overhead_dl += COMP+COMP;
     if(rq==NULL || *rq==NULL){return NULL;}
 
     SCB_server_list = SCB_list_build(rq);
 
     while(SCB_server_list && SCB_server_list->next!=NULL)
     {
+        overhead_dl += COMP+COMP;
+
         SCB_packed_server_list = SCB_list_pack(&SCB_server_list);
 
         RUN_proper_server_remove(&SCB_reduction_root,&SCB_packed_server_list);
@@ -354,6 +404,7 @@ SCB* SCB_reduction_tree_build(TCB** rq)
         SCB_server_list = SCB_dual_server_list;
     }
 
+    overhead_dl += COMP;
     if(SCB_reduction_root==NULL)
     {
         SCB_reduction_root = SCB_server_list;
@@ -370,10 +421,13 @@ void SCB_reduction_tree_destory(SCB** SCB_root)
 {
     SCB* scb = NULL;
     TCB* tcb = NULL;
+
+    overhead_dl += COMP+COMP;
     if(SCB_root==NULL || *SCB_root==NULL){return;}
     
     scb = *SCB_root;
 
+    overhead_dl += COMP;
     switch(scb->is_pack)
     {
         case LEAF:
@@ -402,10 +456,12 @@ void RUN_reduction_tree_unpack_by_root(SCB** SCB_root,int selected)
     SCB* earliest_ddl_SCB = NULL;
     TCB_CNTNR* tcb_cntnr  = NULL;
 
+    overhead_dl += COMP+COMP;
     if(SCB_root==NULL || *SCB_root==NULL){return;}
 
     scb = *SCB_root;
 
+    overhead_dl += COMP;
     switch(scb->is_pack)
     {
         case LEAF:
@@ -445,12 +501,15 @@ void RUN_reduction_tree_unpack(SCB** SCB_root)
     SCB* scb     = NULL;
     SCB* SCB_min = NULL;
 
+    overhead_dl += COMP+COMP;
     if(SCB_root==NULL || *SCB_root==NULL){return;}
 
     SCB_min = *SCB_root;
 
     for(scb=*SCB_root;scb;scb=scb->next)
     {
+        overhead_dl += IADD+COMP;
+        overhead_dl += COMP;
         if(scb->deadline < SCB_min->deadline){SCB_min = scb;}
         else
         {
@@ -476,8 +535,10 @@ void RUN_reorganize_function(TCB** rq)
 {
     SCB* SCB_reduction_tree_root = NULL;
 
+    overhead_dl += COMP+COMP;
     if(rq==NULL || *rq==NULL){return;}
 
+    overhead_dl += COMP;
     if(has_new_task)
     {
         has_new_task = 0;
