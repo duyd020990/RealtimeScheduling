@@ -642,6 +642,8 @@ void RUN_schedule()
         assignment_history[tc->tcb->tid] = processor_id;
     }
 
+    execution_queue_destory(&execution_queue);
+    
 #ifdef DEBUG
     for(i=0;i<PROCESSOR_NUM;i++)
     {

@@ -12,6 +12,7 @@
 //#include "LSF.h"
 //#include "EDF.h"
 #include "LLREF.h"
+#include "RUN.h"
 
 //#define AP_ALSO
 
@@ -30,6 +31,10 @@ extern SCHEDULING_ALGORITHM EDF_sa;
 #ifdef LLREF
 extern int release_time[TICKS];
 extern SCHEDULING_ALGORITHM LLREF_sa;
+#endif
+
+#ifdef
+extern SCHEDULING_ALGORITHM RUN_sa; 
 #endif
 
 /***********************************************************************************************************/
@@ -263,6 +268,22 @@ int main ( int argc, char *argv[] )
 #ifdef LLREF
 
     run_simulation("LLREF",LLREF_sa);
+  
+    fprintf ( ovhd_dl_max_fp,   ", %llu", overhead_dl_max );
+    fprintf ( ovhd_dl_total_fp, ", %llu", overhead_dl_total );
+    fprintf ( ovhd_al_max_fp,   ", %llu", overhead_alpha_max );
+    fprintf ( ovhd_al_total_fp, ", %llu", overhead_alpha_total );
+#else    
+
+    fprintf ( ovhd_dl_max_fp  , "," );
+    fprintf ( ovhd_dl_total_fp, "," );
+    fprintf ( ovhd_al_max_fp  , "," );
+    fprintf ( ovhd_al_total_fp, "," );
+#endif
+
+#ifdef RUN
+
+    run_simulation("RUN",RUN_sa);
   
     fprintf ( ovhd_dl_max_fp,   ", %llu", overhead_dl_max );
     fprintf ( ovhd_dl_total_fp, ", %llu", overhead_dl_total );
