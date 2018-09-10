@@ -540,6 +540,8 @@ void RUN_scheduling_initialize()
 {
     SCB_root        = NULL;
     execution_queue = NULL;
+
+    for(i=0;i<MAX_TASKS;i++){assignment_history[i]=-1;}
 }
 
 int RUN_insert_OK(TCB* t1,TCB* t2)
@@ -609,7 +611,9 @@ run scheduling
 */
 void RUN_schedule()
 {
-    int i;
+    int i,processor_id;
+    TCB_CNTNR* tc = NULL;
+
     for(i=0;i<PROCESSOR_NUM;i++)
     {
         _kernel_runtsk[i] = NULL;
