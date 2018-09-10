@@ -8,6 +8,7 @@
 
 extern int has_new_task; 
 extern int has_new_instance;
+extern int has_task_finished;
 
 extern unsigned long long period[MAX_TASKS];
 
@@ -24,6 +25,9 @@ extern unsigned long long overhead_dl_total;
 extern unsigned long long overhead_alpha;
 extern unsigned long long overhead_alpha_max;
 extern unsigned long long overhead_alpha_total;
+
+int assignment_history[MAX_TASKS];
+
 
 SCB* SCB_root;
 
@@ -551,9 +555,9 @@ void RUN_reorganize_function(TCB** rq)
     if(rq==NULL || *rq==NULL){return;}
 
     overhead_dl += COMP;
-    if(has_new_task)
+    if(has_new_task || has_new_instance || has_task_finished)
     {
-        has_new_task = 0;
+        has_new_task = has_new_instance = has_task_finished = 0;
 
         SCB_reduction_tree_root = SCB_reduction_tree_build(rq);
 
@@ -561,10 +565,34 @@ void RUN_reorganize_function(TCB** rq)
 
         SCB_reduction_tree_destory(&SCB_reduction_tree_root);
     }
-    else if(has_new_instance)
+}
+
+
+int check_assignment_history(TCB* tcb)
+{
+    return assignment_history[tcb->tid];
+}
+
+int processor_assignment(TCB* tcb)
+{
+    int i;
+    int processor_id = -1;
+    
+    if(tcb == NULL){return -1;}
+    
+    if((processor_id=check_assignment_history(tcb)) == -1)
     {
-        has_new_instance = 0;
+        for(i=0;i<PROCESSOR_NUM;i++)
+        {
+            if(_kernel_runtsk[i]==NULL){break;}
+        }
     }
+    if(i<PROCESSOR_NUM)
+    {
+        processor_id = i;
+    }
+    
+    return processor_id;
 }
 
 /*
@@ -588,6 +616,25 @@ void RUN_schedule()
     }
 
 
+    for(i=0;i<PROCESSOR_NUM;i++)
+    {
+        tc = execution_queue_retrieve(&execution_queue);
+        if(tc == NULL){printf("tc is NULL,in RUN schedule\n");break;}
+        if(tc->tcb == NULL){printf("tc->tcb is NULL,in RUN schedule\n");break;}
+        
+        processor_id = processor_assignment(tc->tcb);
+        if(processor_id == -1){printf("processor_id is -1,in RUN schedule\n");break;}
+        
+        _kernel_runtsk[processor_id] = tc->tcb;
+        assignment_history[tc->tcb->tid] = processor_id;
+    }
+
+#ifdef DEBUG
+    for(i=0;i<PROCESSOR_NUM;i++)
+    {
+        printf("%p\t%d\n",_kernel_runtsk[i],_kernel_runtsk[i]->tid);
+    }
+#endif
 
 }
 
