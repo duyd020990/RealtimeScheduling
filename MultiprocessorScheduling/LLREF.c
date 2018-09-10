@@ -412,6 +412,7 @@ void LLREF_scheduling()
                 processor_id = i;
             }
         }
+        assign_history[p->tid] = processor_id;
         _kernel_runtsk[processor_id] = p;
         assigned[processor_id] = 1;
 
