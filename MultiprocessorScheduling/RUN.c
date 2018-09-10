@@ -316,6 +316,18 @@ void execution_queue_insert(TCB_CNTNR* new_tc)
     }
 }
 
+TCB_CNTNR* execution_queue_retrieve(TCB_CNTNR** TCB_CNTNR_list)
+{
+    TCB_CNTNR* tc=NULL;
+    
+    if(TCB_CNTNR_list==NULL || *TCB_CNTNR_list==NULL){return NULL;}
+    
+    tc              = *TCB_CNTNR_list;
+    *TCB_CNTNR_list = tc->next;
+    
+    return tc;
+}
+
 SCB* SCB_dual_list_build(SCB** packed_SCB_list)
 {
     SCB* packed_SCB       = NULL;
