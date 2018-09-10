@@ -597,10 +597,10 @@ int processor_assignment(TCB* tcb)
         {
             if(_kernel_runtsk[i]==NULL){break;}
         }
-    }
-    if(i<PROCESSOR_NUM)
-    {
-        processor_id = i;
+        if(i<PROCESSOR_NUM)
+        {
+            processor_id = i;
+        }
     }
     
     return processor_id;
@@ -643,7 +643,7 @@ void RUN_schedule()
     }
 
     execution_queue_destory(&execution_queue);
-    
+
 #ifdef DEBUG
     for(i=0;i<PROCESSOR_NUM;i++)
     {
