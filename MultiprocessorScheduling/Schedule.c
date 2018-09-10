@@ -33,7 +33,7 @@ extern int release_time[TICKS];
 extern SCHEDULING_ALGORITHM LLREF_sa;
 #endif
 
-#ifdef
+#ifdef RUN
 extern SCHEDULING_ALGORITHM RUN_sa; 
 #endif
 
