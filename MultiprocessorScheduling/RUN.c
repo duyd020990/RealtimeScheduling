@@ -332,6 +332,14 @@ TCB_CNTNR* execution_queue_retrieve(TCB_CNTNR** TCB_CNTNR_list)
     return tc;
 }
 
+void execution_queue_destory(TCB_CNTNR** TCB_CNTNR_queue)
+{
+    TCB_CNTNR* tc = NULL;
+    if(TCB_CNTNR_queue==NULL || *TCB_CNTNR_queue==NULL){return;}
+    
+    while((tc=execution_queue_retrieve(TCB_CNTNR_queue))!=NULL){free(tc);}
+}
+
 SCB* SCB_dual_list_build(SCB** packed_SCB_list)
 {
     SCB* packed_SCB       = NULL;
