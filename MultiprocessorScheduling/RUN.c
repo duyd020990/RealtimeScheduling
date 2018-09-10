@@ -538,6 +538,7 @@ void RUN_reduction_tree_unpack(SCB** SCB_root)
 
 void RUN_scheduling_initialize()
 {
+    int i;
     SCB_root        = NULL;
     execution_queue = NULL;
 
