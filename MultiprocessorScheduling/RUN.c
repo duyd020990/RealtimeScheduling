@@ -622,28 +622,49 @@ void RUN_schedule()
 {
     int i,processor_id;
     TCB_CNTNR* tc = NULL;
-
-    for(i=0;i<PROCESSOR_NUM;i++)
+    
+    if(!has_new_instance && !has_new_task && !has_task_finished){return;}
+    
+    if(has_new_instance || has_new_task)
     {
-        _kernel_runtsk[i] = NULL;
+        has_new_instance = has_new_task = has_task_finished =0;
+        
+        for(i=0;i<PROCESSOR_NUM;i++)
+        {
+            _kernel_runtsk[i] = NULL;
+        }
+    
+        for(i=0;i<PROCESSOR_NUM;i++)
+        {
+            tc = execution_queue_retrieve(&execution_queue);
+            if(tc == NULL){printf("tc is NULL,in RUN schedule\n");break;}
+            if(tc->tcb == NULL){printf("tc->tcb is NULL,in RUN schedule\n");break;}
+            
+            processor_id = processor_assignment(tc->tcb);
+            if(processor_id == -1){printf("processor_id is -1,in RUN schedule\n");break;}
+            
+            _kernel_runtsk[processor_id] = tc->tcb;
+            assignment_history[tc->tcb->tid] = processor_id;
+        }
     }
-
-
-    for(i=0;i<PROCESSOR_NUM;i++)
+    
+    if(has_task_finished)
     {
-        tc = execution_queue_retrieve(&execution_queue);
-        if(tc == NULL){printf("tc is NULL,in RUN schedule\n");break;}
-        if(tc->tcb == NULL){printf("tc->tcb is NULL,in RUN schedule\n");break;}
+        has_task_finished = 0;
         
-        processor_id = processor_assignment(tc->tcb);
-        if(processor_id == -1){printf("processor_id is -1,in RUN schedule\n");break;}
-        
-        _kernel_runtsk[processor_id] = tc->tcb;
-        assignment_history[tc->tcb->tid] = processor_id;
+        for(i=0;i<PROCESSOR_NUM;i++)
+        {
+            if(_kernel_runtsk[i] != NULL){continue;}
+            
+            tc = execution_queue_retrieve(&execution_queue);
+            if(tc == NULL){printf("tc is NULL,in RUN schedule\n");break;}
+            if(tc->tcb == NULL){printf("tc->tcb is NULL,in RUN schedule\n");break;}
+            
+            _kernel_runtsk[i] = tc->tcb;
+            assignment_history[tc->tcb->tid] = i;
+        }
     }
-
-    execution_queue_destory(&execution_queue);
-
+    
 #ifdef DEBUG
     for(i=0;i<PROCESSOR_NUM;i++)
     {
