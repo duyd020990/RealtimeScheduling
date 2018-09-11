@@ -668,7 +668,8 @@ void RUN_schedule()
 #ifdef DEBUG
     for(i=0;i<PROCESSOR_NUM;i++)
     {
-        printf("%p\t%d\n",_kernel_runtsk[i],_kernel_runtsk[i]->tid);
+        if(!_kernel_runtsk[i]){continue;}
+        printf("pid:%d\t%p\ttid:%d\n",i,_kernel_runtsk[i],_kernel_runtsk[i]->tid);
     }
 #endif
 
