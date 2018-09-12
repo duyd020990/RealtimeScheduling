@@ -6,6 +6,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#define DEBUG
+
 extern int has_new_task; 
 extern int has_new_instance;
 extern int has_task_finished;
@@ -27,6 +29,8 @@ extern unsigned long long overhead_alpha_max;
 extern unsigned long long overhead_alpha_total;
 
 int assignment_history[MAX_TASKS];
+
+extern unsigned long long tick;
 
 
 SCB* SCB_root;
@@ -563,19 +567,18 @@ void RUN_reorganize_function(TCB** rq)
     SCB* SCB_reduction_tree_root = NULL;
 
     overhead_dl += COMP+COMP;
+
+    if(!has_new_task && !has_new_instance){return;}
+
     if(rq==NULL || *rq==NULL){return;}
 
-    overhead_dl += COMP;
-    if(has_new_task || has_new_instance || has_task_finished)
-    {
-        has_new_task = has_new_instance = has_task_finished = 0;
+    execution_queue_destory(&execution_queue);
 
-        SCB_reduction_tree_root = SCB_reduction_tree_build(rq);
+    SCB_reduction_tree_root = SCB_reduction_tree_build(rq);
 
-        RUN_reduction_tree_unpack(&SCB_reduction_tree_root);
+    RUN_reduction_tree_unpack(&SCB_reduction_tree_root);
 
-        SCB_reduction_tree_destory(&SCB_reduction_tree_root);
-    }
+    SCB_reduction_tree_destory(&SCB_reduction_tree_root);
 }
 
 
@@ -602,7 +605,7 @@ int processor_assignment(TCB* tcb)
             processor_id = i;
         }
     }
-    
+
     return processor_id;
 }
 
@@ -624,11 +627,11 @@ void RUN_schedule()
     TCB_CNTNR* tc = NULL;
     
     if(!has_new_instance && !has_new_task && !has_task_finished){return;}
-    
+
     if(has_new_instance || has_new_task)
     {
-        has_new_instance = has_new_task = has_task_finished =0;
-        
+        has_new_instance = has_new_task = has_task_finished = 0;
+
         for(i=0;i<PROCESSOR_NUM;i++)
         {
             _kernel_runtsk[i] = NULL;
@@ -645,6 +648,7 @@ void RUN_schedule()
             
             _kernel_runtsk[processor_id] = tc->tcb;
             assignment_history[tc->tcb->tid] = processor_id;
+            free(tc);
         }
     }
     
@@ -655,21 +659,23 @@ void RUN_schedule()
         for(i=0;i<PROCESSOR_NUM;i++)
         {
             if(_kernel_runtsk[i] != NULL){continue;}
-            
+
             tc = execution_queue_retrieve(&execution_queue);
             if(tc == NULL){printf("tc is NULL,in RUN schedule\n");break;}
             if(tc->tcb == NULL){printf("tc->tcb is NULL,in RUN schedule\n");break;}
-            
+           
+            fprintf(stderr,"tc %p,tcb %p,tid %d\n",tc,tc->tcb,tc->tcb->tid); 
             _kernel_runtsk[i] = tc->tcb;
             assignment_history[tc->tcb->tid] = i;
+            free(tc);
         }
     }
-    
+
 #ifdef DEBUG
     for(i=0;i<PROCESSOR_NUM;i++)
     {
         if(!_kernel_runtsk[i]){continue;}
-        printf("pid:%d\t%p\ttid:%d\n",i,_kernel_runtsk[i],_kernel_runtsk[i]->tid);
+        fprintf(stderr,"pid:%d\t%p\ttid:%d\n",i,_kernel_runtsk[i],_kernel_runtsk[i]->tid);
     }
 #endif
 
