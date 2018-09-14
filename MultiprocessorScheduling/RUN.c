@@ -81,8 +81,6 @@ void SCB_list_print(SCB** scb_list)
 void SCB_reduction_tree_print(SCB** SCB_root,int level,int index)
 {
     SCB* scb              = NULL;
-    SCB* SCB_tmp          = NULL;
-    TCB_CNTNR* tcb_cntnr  = NULL;
     TCB* tcb              = NULL;
 
     if(SCB_root==NULL || *SCB_root==NULL){return;}
@@ -99,21 +97,21 @@ void SCB_reduction_tree_print(SCB** SCB_root,int level,int index)
                                                   tcb->tid,
                                                   tcb->et,
                                                   tcb->a_dl);         // display job information
-            RUN_reduction_tree_print(&(scb->next),level,index+1);
+            SCB_reduction_tree_print(&(scb->next),level,index+1);
         break;
 
         case PACK:
             printf("PACK\n");
             printf("level:%d\tul:%f\tdl:%llu\n",level,scb->ultilization,scb->deadline);         // display ultilization and deadline
-            RUN_reduction_tree_print(&(scb->leaf),level+1,0);
-            RUN_reduction_tree_print(&(scb->next),level,index+1);
+            SCB_reduction_tree_print(&(scb->leaf),level+1,0);
+            SCB_reduction_tree_print(&(scb->next),level,index+1);
         break;
 
         case DUAL: 
             printf("DUAL\n");
             printf("ul:%f\tdl:%llu\n",scb->ultilization,scb->deadline);         // display ultilization and deadline
-            RUN_reduction_tree_print(&(scb->leaf),level+1,0);
-            RUN_reduction_tree_print(&(scb->next),level,index+1);
+            SCB_reduction_tree_print(&(scb->leaf),level+1,0);
+            SCB_reduction_tree_print(&(scb->next),level,index+1);
         break;
     }
 }
