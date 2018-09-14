@@ -55,6 +55,9 @@ SCHEDULING_ALGORITHM RUN_sa = {
 /*
 
 */
+
+
+/*************************** FOR DEBUG ***********************************/
 void SCB_list_print(SCB** scb_list)
 {
     int i;
@@ -74,6 +77,47 @@ void SCB_list_print(SCB** scb_list)
                                           scb->tcb            );
     }
 }
+
+void SCB_reduction_tree_print(SCB** SCB_root,int level,int index)
+{
+    SCB* scb              = NULL;
+    SCB* SCB_tmp          = NULL;
+    TCB_CNTNR* tcb_cntnr  = NULL;
+    TCB* tcb              = NULL;
+
+    if(SCB_root==NULL || *SCB_root==NULL){return;}
+    
+    printf("level %d-%d:",level,index);
+
+    scb = *SCB_root;
+    switch(scb->is_pack)
+    {
+        case LEAF:
+            printf("LEAF\n");
+            tcb = scb->tcb;
+            printf("%p\ttid:%d\tet:%u\tdl:%llu\n",tcb,
+                                                  tcb->tid,
+                                                  tcb->et,
+                                                  tcb->a_dl);         // display job information
+            RUN_reduction_tree_print(&(scb->next),level,index+1);
+        break;
+
+        case PACK:
+            printf("PACK\n");
+            printf("level:%d\tul:%f\tdl:%llu\n",level,scb->ultilization,scb->deadline);         // display ultilization and deadline
+            RUN_reduction_tree_print(&(scb->leaf),level+1,0);
+            RUN_reduction_tree_print(&(scb->next),level,index+1);
+        break;
+
+        case DUAL: 
+            printf("DUAL\n");
+            printf("ul:%f\tdl:%llu\n",scb->ultilization,scb->deadline);         // display ultilization and deadline
+            RUN_reduction_tree_print(&(scb->leaf),level+1,0);
+            RUN_reduction_tree_print(&(scb->next),level,index+1);
+        break;
+    }
+}
+/***************************************************************************************/
 
 SCB* TCB_to_SCB(TCB* tcb)
 {
@@ -382,6 +426,22 @@ void RUN_proper_server_remove(SCB** SCB_root,SCB** SCB_list)
     overhead_dl += COMP+COMP+COMP;
     if(SCB_root==NULL || SCB_list==NULL || *SCB_list==NULL){return;}
 
+    scb = SCB_list;
+    if((*scb)->next == NULL)         // only one element in this SCB_list
+    {
+        SCB_tmp = *scb;
+        *scb = ((*scb)->next);
+        SCB_tmp->next = NULL;
+
+        if(*SCB_root == NULL){*SCB_root = SCB_tmp;}
+        else
+        {
+            SCB_tmp->next = *SCB_root;
+            *SCB_root = SCB_tmp;
+        }
+        return;
+    }
+
     for(scb = SCB_list;*scb;)
     {
         overhead_dl += IADD+COMP;
@@ -419,13 +479,14 @@ SCB* SCB_reduction_tree_build(TCB** rq)
 
     SCB_server_list = SCB_list_build(rq);
 
-    while(SCB_server_list && SCB_server_list->next!=NULL)
+    while(1)
     {
         overhead_dl += COMP+COMP;
 
         SCB_packed_server_list = SCB_list_pack(&SCB_server_list);
 
         RUN_proper_server_remove(&SCB_reduction_root,&SCB_packed_server_list);
+        if(SCB_packed_server_list == NULL){break;}
 
         SCB_dual_server_list = SCB_dual_list_build(&SCB_packed_server_list);
 
@@ -611,7 +672,6 @@ int processor_assignment(TCB* tcb)
 
 /*
 Architecture of Scheduling function for RUN algorithm
-
 RUNScheduling:
 if has new task:
     build reduction tree
@@ -678,7 +738,6 @@ void RUN_schedule()
         fprintf(stderr,"pid:%d\t%p\ttid:%d\n",i,_kernel_runtsk[i],_kernel_runtsk[i]->tid);
     }
 #endif
-
 }
 
 void RUN_scheduling_exit(){}
