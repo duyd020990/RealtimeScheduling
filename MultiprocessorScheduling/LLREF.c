@@ -3,6 +3,7 @@
 //#include <math.h>
 
 #include "Schedule.h"
+#include "signal.h"
 #include "EDF.h"
 
 #include <stdio.h>
