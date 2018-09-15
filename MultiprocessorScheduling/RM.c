@@ -1,8 +1,11 @@
 #include "RM.h"
 
-#include <stdio.h>
-
 #include "Schedule.h"
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <string.h>
 
 extern unsigned long long period[MAX_TASKS];
 extern TCB* _kernel_runtsk[PROCESSOR_NUM];

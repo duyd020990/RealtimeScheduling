@@ -1,9 +1,12 @@
 #include "EDF.h"
 
-#include <stdio.h>
 #include "Schedule.h"
-
 #include "LSF.h"
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <string.h>
 
 extern TCB* _kernel_runtsk;
 extern TCB* _kernel_runtsk_pre;

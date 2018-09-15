@@ -1,9 +1,5 @@
 #ifndef SCHEDULE_H
 #define SCHEDULE_H
-    
-#include <signal.h>
-#include <stdio.h>
-#include <stdlib.h>
 
 /* Overhead Definition */
 #define FADD     4

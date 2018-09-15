@@ -1,10 +1,13 @@
 #include "RUN.h"
 
 #include "Schedule.h"
+#include "signal.h"
 #include "EDF.h"
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
+#include <string.h>
 
 #define DEBUG
 
@@ -194,7 +197,7 @@ void TCB_to_RUN_TCB(TCB** rq)
         }
 
         memcpy(TCB_tmp,tcb,DIFF(TCB,next));
-        TCB_tmp->next = TCB->prev = NULL;
+        TCB_tmp->next = TCB_tmp->prev = NULL;
         TCB_tmp->something_else   = NULL;
 
         if(RUN_ready_queue == NULL){RUN_ready_queue = TCB_tmp;}
@@ -235,15 +238,15 @@ TCB_CNTNR* RUN_TCB_update(TCB** rq,TCB** RUN_rq)
 {
     TCB* new_tcb              = NULL;
     TCB* old_tcb              = NULL;
-    TCB_CNTNR** updated_queue = NULL;
+    TCB_CNTNR* updated_queue  = NULL;
     TCB_CNTNR*  tc            = NULL;
 
     if(rq==NULL || *rq==NULL || RUN_rq==NULL){return NULL;}
 
-    for(new_tcb=*rq;new_tcb;new_tcb=new_tcb->next;)
+    for(new_tcb=*rq;new_tcb;new_tcb=new_tcb->next)
     {
         // This new_tcb is not new tcb.
-        if(new_tcb->req_time != tick){continue;}
+        if(new_tcb->req_tim != tick){continue;}
 
         for(old_tcb=*RUN_rq;old_tcb;old_tcb=old_tcb->next)
         {
@@ -252,7 +255,7 @@ TCB_CNTNR* RUN_TCB_update(TCB** rq,TCB** RUN_rq)
         if(old_tcb!=NULL)
         {
             old_tcb->a_dl = new_tcb->a_dl;
-            old_tcb->req_time = new_tcb->req_time;
+            old_tcb->req_tim = new_tcb->req_tim;
 
             //Record the  updated old_tcb.
             tc = (TCB_CNTNR*)malloc(sizeof(TCB_CNTNR));
@@ -261,7 +264,7 @@ TCB_CNTNR* RUN_TCB_update(TCB** rq,TCB** RUN_rq)
                 fprintf(stderr,"Error with malloc, in RUN_TCB_update\n");
                 kill(getpid(),SIG_SHOULD_NOT_HAPPENED);
             }
-            
+
             tc->tcb = old_tcb;
 
             //Link this new TCB_CNTNR block into updated_queue.
@@ -616,24 +619,35 @@ void SCB_reduction_tree_update(SCB** SCB_root,TCB** rq)
 {
     TCB* tcb = NULL;
     SCB* scb = NULL;
-    TCB_CNTRN* update_tc = NULL;
+    TCB_CNTNR* tc        = NULL;
+    TCB_CNTNR* update_tc = NULL;
     
     if(SCB_root==NULL || *SCB_root==NULL || rq==NULL || *rq==NULL){return;}
 
-    tc = RUN_TCB_update(rq,&RUN_ready_queue);
+    update_tc = RUN_TCB_update(rq,&RUN_ready_queue);
 
     // Enumerate the elements in tc,
     // and update the reduction tree according to these elements.
-    for(;tc;tc=tc->next)
+    for(tc=update_tc;tc;tc=tc->next)
     {
-        if(tc->tcb==NULL || tc->tcb->something_else==NULL)
+        tcb = tc->tcb;
+        if(tcb == NULL)
         {
-            fprintf(stderr,"Error with tc->tcb,in SCB_reduction_tree_update\n");
+            fprintf(stderr,"tcb is NULL,in SCB_reduction_tree_update\n");
+            kill(getpid(),SIG_SHOULD_NOT_HAPPENED);
+        }
+        scb = (SCB*)(tcb->something_else);
+        if(scb == NULL)
+        {
+            fprintf(stderr,"scb is NULL,in SCB_reduction_tree_update\n");
             kill(getpid(),SIG_SHOULD_NOT_HAPPENED);
         }
         
-        SCB_reduction_tree_node_update(&(tc->tcb->something_else));
+        scb = (SCB*)tc->tcb->something_else;
+        SCB_reduction_tree_node_update(&scb);
     }
+
+    execution_queue_destory(&update_tc);
 }
 
 void SCB_reduction_tree_destory(SCB** SCB_root)
