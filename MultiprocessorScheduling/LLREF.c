@@ -210,7 +210,11 @@ int LLREF_check_Second_Event(TCB** rq)
         
         overhead_dl += MEM;
         ll = (LLREF_LRECT*)(_kernel_runtsk[i]->something_else);
-        if(ll == NULL){fprintf(stderr,"Err with ll,in check second event\n");while(1);}
+        if(ll == NULL)
+        {
+            fprintf(stderr,"Err with ll,in check second event\n");
+            kill(getpid(),SIG_SHOULD_NOT_HAPPENED);
+        }
         
         overhead_dl += COMP;
         lrect = ll->local_remaining_execution_time;
@@ -229,7 +233,11 @@ int LLREF_check_Second_Event(TCB** rq)
 
         overhead_dl += COMP;
         ll = (LLREF_LRECT*)(p->something_else);
-        if(ll == NULL){fprintf(stderr,"Err with ll,in check second event\n");while(1);}
+        if(ll == NULL)
+        {
+            fprintf(stderr,"Err with ll,in check second event\n");
+            kill(getpid(),SIG_SHOULD_NOT_HAPPENED);
+        }
         
         lrect = ll->local_remaining_execution_time;
 

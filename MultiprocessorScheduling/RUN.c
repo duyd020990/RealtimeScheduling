@@ -28,20 +28,15 @@ extern unsigned long long overhead_alpha;
 extern unsigned long long overhead_alpha_max;
 extern unsigned long long overhead_alpha_total;
 
-int assignment_history[MAX_TASKS];
-
 extern unsigned long long tick;
 
+int assignment_history[MAX_TASKS];
 
 SCB* SCB_root;
 
 TCB_CNTNR* execution_queue;
 
-/* 
-  This running queue for those Multiprocessor Real-time Scheduling,
-  Since the migration only occurse in Multiproccessor platform
- */
-TCB *running_queue[PROCESSOR_NUM]; // A running queue for each processor
+TCB* RUN_ready_queue;
 
 
 SCHEDULING_ALGORITHM RUN_sa = {
@@ -51,10 +46,6 @@ SCHEDULING_ALGORITHM RUN_sa = {
     .insert_OK             = RUN_insert_OK,
     .reorganize_function   = RUN_reorganize_function
 };
-
-/*
-
-*/
 
 
 /*************************** FOR DEBUG ***********************************/
@@ -132,8 +123,10 @@ SCB* TCB_to_SCB(TCB* tcb)
     scb->is_pack          = LEAF;
     scb->ultilization     = ((double)tcb->wcet)/period[tcb->tid];
     scb->deadline         = tcb->a_dl;
+    scb->et               = tcb->et;
     scb->tcb              = tcb;
-    scb->leaf = scb->next = NULL;
+    scb->leaf = scb->next = \
+    scb->root = NULL;
 
     tcb->something_else = scb;
 
@@ -168,14 +161,120 @@ SCB* SCB_to_packed_SCB(SCB* scb)
     packed_scb = (SCB*)malloc(sizeof(SCB));
     if(packed_scb == NULL){printf("Error with malloc,in SCB_to_packed_SCB\n");return NULL;}
 
-    packed_scb->is_pack      = PACK;
-    packed_scb->deadline     = scb->deadline;
-    packed_scb->ultilization = scb->ultilization;
-    packed_scb->leaf         = scb;
-    packed_scb->next         = NULL;
-    packed_scb->tcb          = NULL;
+    packed_scb->is_pack                 = PACK;
+    packed_scb->deadline                = scb->deadline;
+    packed_scb->et                      = scb->et;
+    packed_scb->ultilization            = scb->ultilization;
+    packed_scb->leaf                    = scb;
+    packed_scb->next = packed_scb->root = NULL;
+    packed_scb->tcb                     = NULL;
+
+    scb->root                           = packed_scb;
 
     return packed_scb;
+}
+
+/*
+    Copy all TCB to RUN_TCB_list.
+*/
+void TCB_to_RUN_TCB(TCB** rq)
+{
+    TCB* tcb     = NULL;
+    TCB* TCB_tmp = NULL;
+
+    if(rq==NULL || *rq == NULL){return;}
+
+    for(tcb=*rq;tcb;tcb=tcb->next)
+    {
+        TCB_tmp = (TCB*)malloc(sizeof(TCB));
+        if(TCB_tmp == NULL)
+        {
+            fprintf(stderr,"Error with malloc, in TCB_to_RUN_TCB\n");
+            kill(getpid(),SIG_SHOULD_NOT_HAPPENED);
+        }
+
+        memcpy(TCB_tmp,tcb,DIFF(TCB,next));
+        TCB_tmp->next = TCB->prev = NULL;
+        TCB_tmp->something_else   = NULL;
+
+        if(RUN_ready_queue == NULL){RUN_ready_queue = TCB_tmp;}
+        else
+        {
+            TCB_tmp->next = RUN_ready_queue;
+            RUN_ready_queue->prev = TCB_tmp;
+            RUN_ready_queue = TCB_tmp;
+        }
+    }
+}
+
+/*
+    Destory RUN_TCB_list.
+*/
+void RUN_TCB_destory(TCB** RUN_rq)
+{
+    TCB*  tcb   = NULL;
+    TCB** tcb_p = NULL;
+
+    if(RUN_rq==NULL || *RUN_rq==NULL){return;}
+
+    for(tcb_p=RUN_rq;*tcb_p;)
+    {
+        tcb    = *tcb_p;
+        *tcb_p = (*tcb_p)->next;
+
+        free(tcb);
+    }
+}
+
+/*
+    Use TCB_CNTNR to contain those new instance, 
+    and update root of new instance. 
+    So access the returned TCB_CNTNR as a linkedlist.
+*/
+TCB_CNTNR* RUN_TCB_update(TCB** rq,TCB** RUN_rq)
+{
+    TCB* new_tcb              = NULL;
+    TCB* old_tcb              = NULL;
+    TCB_CNTNR** updated_queue = NULL;
+    TCB_CNTNR*  tc            = NULL;
+
+    if(rq==NULL || *rq==NULL || RUN_rq==NULL){return NULL;}
+
+    for(new_tcb=*rq;new_tcb;new_tcb=new_tcb->next;)
+    {
+        // This new_tcb is not new tcb.
+        if(new_tcb->req_time != tick){continue;}
+
+        for(old_tcb=*RUN_rq;old_tcb;old_tcb=old_tcb->next)
+        {
+            if(new_tcb->tid == old_tcb->tid){break;}
+        }
+        if(old_tcb!=NULL)
+        {
+            old_tcb->a_dl = new_tcb->a_dl;
+            old_tcb->req_time = new_tcb->req_time;
+
+            //Record the  updated old_tcb.
+            tc = (TCB_CNTNR*)malloc(sizeof(TCB_CNTNR));
+            if(tc == NULL)
+            {
+                fprintf(stderr,"Error with malloc, in RUN_TCB_update\n");
+                kill(getpid(),SIG_SHOULD_NOT_HAPPENED);
+            }
+            
+            tc->tcb = old_tcb;
+
+            //Link this new TCB_CNTNR block into updated_queue.
+            if(updated_queue == NULL){updated_queue = tc;}
+            else
+            {
+                tc->next = updated_queue;
+                updated_queue = tc;
+            }
+        }
+    }
+
+    return updated_queue;
 }
 
 int SCB_pack_fill(SCB* packed_SCB,SCB* scb)
@@ -199,6 +298,7 @@ int SCB_pack_fill(SCB* packed_SCB,SCB* scb)
     if(total_ultilization <= (double)1)
     {
         //Yes, change the ultilization of this pack
+        packed_SCB->et           += scb->et;
         packed_SCB->ultilization = total_ultilization;
         
         //If the new server has later deadline, then extend the deadline of this pack.
@@ -206,6 +306,7 @@ int SCB_pack_fill(SCB* packed_SCB,SCB* scb)
         if(packed_SCB->deadline < scb->deadline){packed_SCB->deadline = scb->deadline;}
         
         //New server is a "leaf" for this pack
+        scb->root = packed_SCB;
         scb->next = packed_SCB->leaf;
         packed_SCB->leaf = scb;
 
@@ -504,6 +605,37 @@ SCB* SCB_reduction_tree_build(TCB** rq)
     return SCB_reduction_root;
 }
 
+void SCB_reduction_tree_node_update(SCB** SCB_node)
+{
+    if(SCB_node==NULL || *SCB_node==NULL){return;}
+
+    return;
+}
+
+void SCB_reduction_tree_update(SCB** SCB_root,TCB** rq)
+{
+    TCB* tcb = NULL;
+    SCB* scb = NULL;
+    TCB_CNTRN* update_tc = NULL;
+    
+    if(SCB_root==NULL || *SCB_root==NULL || rq==NULL || *rq==NULL){return;}
+
+    tc = RUN_TCB_update(rq,&RUN_ready_queue);
+
+    // Enumerate the elements in tc,
+    // and update the reduction tree according to these elements.
+    for(;tc;tc=tc->next)
+    {
+        if(tc->tcb==NULL || tc->tcb->something_else==NULL)
+        {
+            fprintf(stderr,"Error with tc->tcb,in SCB_reduction_tree_update\n");
+            kill(getpid(),SIG_SHOULD_NOT_HAPPENED);
+        }
+        
+        SCB_reduction_tree_node_update(&(tc->tcb->something_else));
+    }
+}
+
 void SCB_reduction_tree_destory(SCB** SCB_root)
 {
     SCB* scb = NULL;
@@ -612,6 +744,7 @@ void RUN_scheduling_initialize()
     int i;
     SCB_root        = NULL;
     execution_queue = NULL;
+    RUN_ready_queue = NULL;
 
     for(i=0;i<MAX_TASKS;i++){assignment_history[i]=-1;}
 }
