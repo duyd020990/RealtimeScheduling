@@ -329,29 +329,29 @@ void run_simulation(char* s,SCHEDULING_ALGORITHM sa)
     Initialize ();
     scheduling_initialize();
 
-    for ( tick = 0; tick < TICKS; ) 
+    for(tick=0;tick<TICKS;) 
     {
 
-        for ( i = 0; i < MAX_TASKS; i++ ) 
+        for(i=0;i<MAX_TASKS;i++) 
         {
-            if ( req_tim[i][inst_no[i]] == tick ) 
+            if (req_tim[i][inst_no[i]] == tick) 
             {
-                entry = entry_set ( i );
-                if ( periodic[i] == 1 ) 
+                has_new_instance = 1;
+                
+                entry = entry_set (i);
+                if (periodic[i] == 1) 
                 {
+                    if(phase[i] == tick){has_new_task = 1;}
+
                     entry -> a_dl = tick + period[i];
-                    insert_queue( &p_ready_queue, entry ,sa.insert_OK);
-                    if(phase[i] == tick)
-                    {
-                        has_new_task = 1;
-                    }
+                    insert_queue(&p_ready_queue, entry ,sa.insert_OK);
+                    
                 }
                 else 
                 {
-                    insert_queue_fifo ( &fifo_ready_queue, entry );
+                    insert_queue_fifo(&fifo_ready_queue, entry);
                 }
                 inst_no[i]++;
-                has_new_instance = 1;
             }
         }
         reorganize_function(&p_ready_queue);

@@ -371,6 +371,9 @@ int LLREF_insert_OK(TCB* t1,TCB* t2)
     overhead_dl += COMP;
     if(t1 == NULL){return 0;}
     else{return 1;};
+
+    
+    
 }
 
 void LLREF_scheduling()

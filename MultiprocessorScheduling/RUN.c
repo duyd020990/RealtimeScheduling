@@ -38,6 +38,7 @@ int assignment_history[MAX_TASKS];
 SCB* SCB_root;
 
 TCB_CNTNR* execution_queue;
+TCB_CNTNR* update_tc;
 
 TCB* RUN_ready_queue;
 
@@ -227,57 +228,6 @@ void RUN_TCB_destory(TCB** RUN_rq)
 
         free(tcb);
     }
-}
-
-/*
-    Use TCB_CNTNR to contain those new instance, 
-    and update root of new instance. 
-    So access the returned TCB_CNTNR as a linkedlist.
-*/
-TCB_CNTNR* RUN_TCB_update(TCB** rq,TCB** RUN_rq)
-{
-    TCB* new_tcb              = NULL;
-    TCB* old_tcb              = NULL;
-    TCB_CNTNR* updated_queue  = NULL;
-    TCB_CNTNR*  tc            = NULL;
-
-    if(rq==NULL || *rq==NULL || RUN_rq==NULL){return NULL;}
-
-    for(new_tcb=*rq;new_tcb;new_tcb=new_tcb->next)
-    {
-        // This new_tcb is not new tcb.
-        if(new_tcb->req_tim != tick){continue;}
-
-        for(old_tcb=*RUN_rq;old_tcb;old_tcb=old_tcb->next)
-        {
-            if(new_tcb->tid == old_tcb->tid){break;}
-        }
-        if(old_tcb!=NULL)
-        {
-            old_tcb->a_dl = new_tcb->a_dl;
-            old_tcb->req_tim = new_tcb->req_tim;
-
-            //Record the  updated old_tcb.
-            tc = (TCB_CNTNR*)malloc(sizeof(TCB_CNTNR));
-            if(tc == NULL)
-            {
-                fprintf(stderr,"Error with malloc, in RUN_TCB_update\n");
-                kill(getpid(),SIG_SHOULD_NOT_HAPPENED);
-            }
-
-            tc->tcb = old_tcb;
-
-            //Link this new TCB_CNTNR block into updated_queue.
-            if(updated_queue == NULL){updated_queue = tc;}
-            else
-            {
-                tc->next = updated_queue;
-                updated_queue = tc;
-            }
-        }
-    }
-
-    return updated_queue;
 }
 
 int SCB_pack_fill(SCB* packed_SCB,SCB* scb)
@@ -615,17 +565,12 @@ void SCB_reduction_tree_node_update(SCB** SCB_node)
     return;
 }
 
-void SCB_reduction_tree_update(SCB** SCB_root,TCB** rq)
+void SCB_reduction_tree_update()
 {
-    TCB* tcb = NULL;
-    SCB* scb = NULL;
-    TCB_CNTNR* tc        = NULL;
-    TCB_CNTNR* update_tc = NULL;
+    TCB* tcb      = NULL;
+    SCB* scb      = NULL;
+    TCB_CNTNR* tc = NULL;
     
-    if(SCB_root==NULL || *SCB_root==NULL || rq==NULL || *rq==NULL){return;}
-
-    update_tc = RUN_TCB_update(rq,&RUN_ready_queue);
-
     // Enumerate the elements in tc,
     // and update the reduction tree according to these elements.
     for(tc=update_tc;tc;tc=tc->next)
@@ -759,13 +704,50 @@ void RUN_scheduling_initialize()
     SCB_root        = NULL;
     execution_queue = NULL;
     RUN_ready_queue = NULL;
+    update_tc       = NULL;
 
     for(i=0;i<MAX_TASKS;i++){assignment_history[i]=-1;}
 }
 
 int RUN_insert_OK(TCB* t1,TCB* t2)
 {
-    return EDF_insert_OK(t1,t2);
+    TCB* old_tcb  = NULL;
+    TCB_CNTNR* tc = NULL;
+
+    if(t1 == NULL){return 0;}
+
+    // This is a new task, so no need to search from RUN_TCB_list
+    if(has_new_task){return 1;}
+
+    for(old_tcb=RUN_ready_queue;old_tcb;old_tcb=old_tcb->next)
+    {
+        if(t1->tid == old_tcb->tid){break;}
+    }
+    if(old_tcb!=NULL)
+    {
+        old_tcb->a_dl = t1->a_dl;
+        old_tcb->req_tim = t1->req_tim;
+
+        //Record the  updated old_tcb.
+        tc = (TCB_CNTNR*)malloc(sizeof(TCB_CNTNR));
+        if(tc == NULL)
+        {
+            fprintf(stderr,"Error with malloc, in RUN_TCB_update\n");
+            kill(getpid(),SIG_SHOULD_NOT_HAPPENED);
+        }
+
+        tc->tcb = old_tcb;
+
+        //Link this new TCB_CNTNR block into updated_tc.
+        if(update_tc == NULL){update_tc = tc;}
+        else
+        {
+            tc->next = update_tc;
+            update_tc = tc;
+        }
+    }
+
+    return 1;
 }
 
 void RUN_reorganize_function(TCB** rq)
@@ -778,13 +760,22 @@ void RUN_reorganize_function(TCB** rq)
 
     if(rq==NULL || *rq==NULL){return;}
 
-    execution_queue_destory(&execution_queue);
+    if(has_new_instance)
+    {
+        SCB_reduction_tree_update();
 
-    SCB_reduction_tree_root = SCB_reduction_tree_build(rq);
+        RUN_reduction_tree_unpack(&SCB_reduction_tree_root);
+    }
+    else if(has_new_task)
+    {
+        execution_queue_destory(&execution_queue);
 
-    RUN_reduction_tree_unpack(&SCB_reduction_tree_root);
+        SCB_reduction_tree_destory(&SCB_reduction_tree_root);
 
-    SCB_reduction_tree_destory(&SCB_reduction_tree_root);
+        SCB_reduction_tree_root = SCB_reduction_tree_build(rq);
+
+        RUN_reduction_tree_unpack(&SCB_reduction_tree_root);
+    }
 }
 
 
