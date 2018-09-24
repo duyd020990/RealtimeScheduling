@@ -16,18 +16,26 @@ typedef struct scb
     double             ultilization; //The total ultilization of this pack or dual server.
     unsigned long long deadline;     //The deadline of this pack or dual server.
     unsigned long long et;
-    TCB*               tcb;	         //For a leaf SCB in a tree,this point to a TCB correspond to this SCB.
     struct scb*        root;
-    struct scb*        leaf;         //For those packed server,this point to a list of sub-server.For a dual server,this point to the another phase of this dual server. 
+    void*              leaf;         //For those packed server,this point to a list of sub-server.For a dual server,this point to the another phase of this dual server. 
     struct scb*        next;         //Point to the next SCB block.
 }SCB;
 
 // This is a container for a TCb block
 typedef struct tcb_cntnr
 {
+    int               tid;
 	TCB*              tcb;
+    SCB*              root;
 	struct tcb_cntnr* next;
 }TCB_CNTNR;
+
+//This struct meant to build a server list
+typedef struct svr_cntnr
+{
+    SCB*              scb;
+    struct svr_cntnr* next;
+}SVR_CNTNR;
 
 void RUN_scheduling_initialize();
 void RUN_scheduling_exit();
@@ -37,6 +45,8 @@ int RUN_insert_OK(TCB*,TCB*);
 void RUN_reorganize_function(TCB**);
 
 void RUN_schedule();
+
+void TCB_list_print(TCB* rq);
 
 
 #endif

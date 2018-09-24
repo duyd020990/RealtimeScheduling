@@ -42,11 +42,6 @@ int LLREF_involke;
 FILE* f_debug;
 #endif
 
-
-// This running queue for those Multiprocessor Real-time Scheduling,
-// Since the migration only occurse in Multiproccessor platform
-TCB *running_queue[PROCESSOR_NUM]; // A running queue for each processor
-
 SCHEDULING_ALGORITHM LLREF_sa={
     .scheduling_initialize = LLREF_scheduling_initialize,
     .scheduling_exit       = LLREF_scheduling_exit,
@@ -371,9 +366,6 @@ int LLREF_insert_OK(TCB* t1,TCB* t2)
     overhead_dl += COMP;
     if(t1 == NULL){return 0;}
     else{return 1;};
-
-    
-    
 }
 
 void LLREF_scheduling()

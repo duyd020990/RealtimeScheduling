@@ -11,7 +11,7 @@
 //#include "RM.h"
 //#include "LSF.h"
 //#include "EDF.h"
-#include "LLREF.h"
+//#include "LLREF.h"
 #include "RUN.h"
 
 //#define AP_ALSO
@@ -76,7 +76,6 @@ unsigned long long overhead_alpha_total;
 int has_new_task;
 int has_new_instance;
 int has_task_finished;
-int has_task_missed;
 
 int main ( int argc, char *argv[] )
 {
@@ -195,6 +194,10 @@ int main ( int argc, char *argv[] )
     fclose ( ap_cfp );
 #endif
 
+    fprintf(stderr,"===============================================================\n");
+    fprintf(stderr,"            Working on Ultilization %f       \n",p_util);
+    fprintf(stderr,"===============================================================\n");
+
     fclose ( p_cfp );
     if ( p_util > UTIL_UPPERBOUND ) 
     {
@@ -213,6 +216,8 @@ int main ( int argc, char *argv[] )
 /****************************************************************************************************************/
 #ifdef RM
 
+    fprintf(stderr,"RN\n");
+    
     run_simulation("RM",RM_sa);
   
     fprintf ( ovhd_dl_max_fp,   ", %llu", overhead_dl_max );
@@ -231,6 +236,7 @@ int main ( int argc, char *argv[] )
 #endif
 
 #ifdef LSF
+    fprintf(stderr,"LSF\n");
 
     run_simulation("LSF",LSF_sa);
     
@@ -250,6 +256,7 @@ int main ( int argc, char *argv[] )
 #endif
 
 #ifdef EDF
+    fprintf(stderr,"EDF\n");
 
     run_simulation("EDF",EDF_sa);
 
@@ -266,6 +273,7 @@ int main ( int argc, char *argv[] )
 #endif
 
 #ifdef LLREF
+    fprintf(stderr,"LLREF\n");
 
     run_simulation("LLREF",LLREF_sa);
   
@@ -282,6 +290,7 @@ int main ( int argc, char *argv[] )
 #endif
 
 #ifdef RUN
+    fprintf(stderr,"RUN\n");
 
     run_simulation("RUN",RUN_sa);
   
@@ -329,29 +338,29 @@ void run_simulation(char* s,SCHEDULING_ALGORITHM sa)
     Initialize ();
     scheduling_initialize();
 
-    for(tick=0;tick<TICKS;) 
+    for ( tick = 0; tick < TICKS; ) 
     {
 
-        for(i=0;i<MAX_TASKS;i++) 
+        for ( i = 0; i < MAX_TASKS; i++ ) 
         {
-            if (req_tim[i][inst_no[i]] == tick) 
+            if ( req_tim[i][inst_no[i]] == tick ) 
             {
-                has_new_instance = 1;
-                
-                entry = entry_set (i);
-                if (periodic[i] == 1) 
+                entry = entry_set ( i );
+                if ( periodic[i] == 1 ) 
                 {
-                    if(phase[i] == tick){has_new_task = 1;}
-
                     entry -> a_dl = tick + period[i];
-                    insert_queue(&p_ready_queue, entry ,sa.insert_OK);
-                    
+                    insert_queue( &p_ready_queue, entry ,sa.insert_OK);
+                    if(phase[i] == tick)
+                    {
+                        has_new_task = 1;
+                    }
                 }
                 else 
                 {
-                    insert_queue_fifo(&fifo_ready_queue, entry);
+                    insert_queue_fifo ( &fifo_ready_queue, entry );
                 }
                 inst_no[i]++;
+                has_new_instance = 1;
             }
         }
         reorganize_function(&p_ready_queue);
@@ -500,7 +509,6 @@ void Initialize ( void )
     has_new_instance        = 0;
     has_new_task            = 0;
     has_task_finished       = 0;
-    has_task_missed         = 0;
 
     for(i=0;i<PROCESSOR_NUM;i++)
     {
@@ -597,7 +605,6 @@ void Job_exit ( const char *s, int rr, int processor_id) /* rr: resource reclaim
 
     if ( _kernel_runtsk[processor_id] -> a_dl < tick ) 
     {
-        has_task_missed = 1;
         fprintf( stderr, "\n# MISS: %s: tick=%lld: DL=%lld: TID=%d: INST_NO=%d, WCET=%d, ET=%d, req_tim=%lld\n",
            s, tick, _kernel_runtsk[processor_id]->a_dl, _kernel_runtsk[processor_id]->tid, _kernel_runtsk[processor_id]->inst_no,
            wcet[_kernel_runtsk[processor_id]->tid], _kernel_runtsk[processor_id]->initial_et, _kernel_runtsk[processor_id]->req_tim );
@@ -624,6 +631,7 @@ void Job_exit ( const char *s, int rr, int processor_id) /* rr: resource reclaim
     }
     _kernel_runtsk[processor_id] = NULL;
     has_task_finished = 1;
+
     return;
 }
 
