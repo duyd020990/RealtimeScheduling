@@ -9,5 +9,6 @@ clean:
 	rm DataGenerator
 clean_dataset:
 	rm periodic.*
+	rm *.cfg
 clean_result:
 	rm *.csv

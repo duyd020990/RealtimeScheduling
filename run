@@ -47,14 +47,29 @@ do
 	echo "******** Periodic Tasks: $I % ********" >> ovhd_al_total.csv
 	
 
-	X=0
-	while  [ $X -ne 10 ]
-	do
-		X=`expr $X + 1`
-		echo "******** $I % $X data ********" >> run.txt
-		cp -p ./periodic.cfg.${I}-${X} ./periodic.cfg
-		./Schedule >> results.csv
-	done
+	echo "******** $I % $X data ********" >> run.txt
+	cp -p ./periodic.cfg.${I}-1 ./periodic1.cfg &
+	cp -p ./periodic.cfg.${I}-2 ./periodic2.cfg &
+	cp -p ./periodic.cfg.${I}-3 ./periodic3.cfg &
+	cp -p ./periodic.cfg.${I}-4 ./periodic4.cfg &
+	cp -p ./periodic.cfg.${I}-5 ./periodic5.cfg &
+	cp -p ./periodic.cfg.${I}-6 ./periodic6.cfg &
+	cp -p ./periodic.cfg.${I}-7 ./periodic7.cfg &
+	cp -p ./periodic.cfg.${I}-8 ./periodic8.cfg &
+	cp -p ./periodic.cfg.${I}-9 ./periodic9.cfg &
+	cp -p ./periodic.cfg.${I}-10 ./periodic10.cfg
+	wait
+	./Schedule ./periodic1.cfg >> results1.csv &
+	./Schedule ./periodic2.cfg >> results2.csv &
+	./Schedule ./periodic3.cfg >> results3.csv &
+	./Schedule ./periodic4.cfg >> results4.csv &
+	./Schedule ./periodic5.cfg >> results5.csv &
+	./Schedule ./periodic6.cfg >> results6.csv &
+	./Schedule ./periodic7.cfg >> results7.csv &
+	./Schedule ./periodic8.cfg >> results8.csv &
+	./Schedule ./periodic9.cfg >> results9.csv &
+	./Schedule ./periodic10.cfg >> results10.csv
+	
 	echo "Average,=AVERAGE(R[-10]C[0]:R[-1]C[0]),=AVERAGE(R[-10]C[0]:R[-1]C[0]),=AVERAGE(R[-10]C[0]:R[-1]C[0]),=AVERAGE(R[-10]C[0]:R[-1]C[0]),=AVERAGE(R[-10]C[0]:R[-1]C[0]),=AVERAGE(R[-10]C[0]:R[-1]C[0]),=AVERAGE(R[-10]C[0]:R[-1]C[0])" >> results.csv
 	echo "Average,=AVERAGE(R[-10]C[0]:R[-1]C[0]),=AVERAGE(R[-10]C[0]:R[-1]C[0]),=AVERAGE(R[-10]C[0]:R[-1]C[0]),=AVERAGE(R[-10]C[0]:R[-1]C[0]),=AVERAGE(R[-10]C[0]:R[-1]C[0]),=AVERAGE(R[-10]C[0]:R[-1]C[0]),=AVERAGE(R[-10]C[0]:R[-1]C[0])" >> ovhd_dl_max.csv
 	echo "Average,=AVERAGE(R[-10]C[0]:R[-1]C[0]),=AVERAGE(R[-10]C[0]:R[-1]C[0]),=AVERAGE(R[-10]C[0]:R[-1]C[0]),=AVERAGE(R[-10]C[0]:R[-1]C[0]),=AVERAGE(R[-10]C[0]:R[-1]C[0]),=AVERAGE(R[-10]C[0]:R[-1]C[0]),=AVERAGE(R[-10]C[0]:R[-1]C[0])" >> ovhd_dl_total.csv

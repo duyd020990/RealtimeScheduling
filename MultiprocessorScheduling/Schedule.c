@@ -11,7 +11,7 @@
 //#include "RM.h"
 //#include "LSF.h"
 //#include "EDF.h"
-//#include "LLREF.h"
+#include "LLREF.h"
 #include "RUN.h"
 
 //#define AP_ALSO
@@ -89,14 +89,16 @@ int main ( int argc, char *argv[] )
     unsigned           task_id, task_wcet, task_et, prev_task_id=MAX_TASKS;
     unsigned long long task_period, task_req_tim;
 
+    if(argc<2){fprintf(stderr,"Argument Error\n");exit(-1);}
+
     signal_init();
 
 #ifdef LLREF
     memset(release_time,0,sizeof(int)*TICKS);
 #endif
 
-    if ( (p_cfp = fopen ( "periodic.cfg", "r") ) == NULL ) {
-        printf ( "Cannot open \"periodic.cfg\"\n" );
+    if ( (p_cfp = fopen ( argv[1], "r") ) == NULL ) {
+        printf ( "Cannot open \"%s\"\n",argv[1] );
         return 1;
     }
 
@@ -345,22 +347,21 @@ void run_simulation(char* s,SCHEDULING_ALGORITHM sa)
         {
             if ( req_tim[i][inst_no[i]] == tick ) 
             {
+
+                has_new_instance = 1;
+
                 entry = entry_set ( i );
                 if ( periodic[i] == 1 ) 
                 {
+                    if(phase[i] == tick){has_new_task = 1;}
                     entry -> a_dl = tick + period[i];
                     insert_queue( &p_ready_queue, entry ,sa.insert_OK);
-                    if(phase[i] == tick)
-                    {
-                        has_new_task = 1;
-                    }
                 }
                 else 
                 {
                     insert_queue_fifo ( &fifo_ready_queue, entry );
                 }
                 inst_no[i]++;
-                has_new_instance = 1;
             }
         }
         reorganize_function(&p_ready_queue);
@@ -429,6 +430,7 @@ void insert_queue( TCB **rq,TCB *entry,void* function)
     }
     if ( *rq == NULL ) 
     {
+        insert_OK(entry,*rq);
         *rq = entry;
     }
 

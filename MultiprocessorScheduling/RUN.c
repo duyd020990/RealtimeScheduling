@@ -1,3 +1,16 @@
+
+/*
+Architecture of Scheduling function for RUN algorithm
+RUNScheduling:
+if has new task:
+    build reduction tree
+    search run
+else if has new instance:
+    update reduction tree
+    search run
+run scheduling
+*/
+
 #include "RUN.h"
 
 #include "Schedule.h"
@@ -6,10 +19,15 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
 #include <string.h>
+#include <math.h>
 
-#define DEBUG
+#include <unistd.h>
+
+#define EPSILON 0.000000000000001
+#define IS_EQUAL(a,b) fabs(a-b)<EPSILON
+
+//#define DEBUG
 
 extern int has_new_task; 
 extern int has_new_instance;
@@ -67,7 +85,8 @@ void SCB_list_print(SCB** scb_list)
 
     for(scb = *scb_list,i=0;scb;scb = scb->next,i++)
     {
-        fprintf(stderr,"%d\t%f\t%llu\t%p\n",i                    ,
+        fprintf(stderr,"%p\t%d\t%f\t%llu\t%p\n",scb,
+                                          i                    ,
                                           scb->ultilization    ,
                                           scb->deadline        ,
                                           scb->leaf            );
@@ -88,7 +107,7 @@ void SCB_reduction_tree_print(SCB** SCB_node,int level,int index)
     switch(scb->is_pack)
     {
         case LEAF:
-            fprintf(stderr,"LEAF\n");
+            fprintf(stderr,"LEAF %p\n",scb);
             tc = (TCB_CNTNR*)(scb->leaf);
             if(tc == NULL){fprintf(stderr,"tc is NULL, in SCB_reduction_tree_print\n");while(1);}
             tcb = tc->tcb;
@@ -104,15 +123,15 @@ void SCB_reduction_tree_print(SCB** SCB_node,int level,int index)
         break;
 
         case PACK:
-            fprintf(stderr,"PACK\n");
-            fprintf(stderr,"level:%d\tul:%f\tdl:%llu\tnext:%p\n",level,scb->ultilization,scb->deadline,scb->next);         // display ultilization and deadline
+            fprintf(stderr,"PACK %p\n",scb);
+            fprintf(stderr,"level:%d\tul:%f\tet:%llu\tdl:%llu\n",level,scb->ultilization,scb->et,scb->deadline);         // display ultilization and deadline
             SCB_reduction_tree_print((SCB**)(&(scb->leaf)),level+1,0);
             SCB_reduction_tree_print(&(scb->next),level,index+1);
         break;
 
         case DUAL: 
-            fprintf(stderr,"DUAL\n");
-            fprintf(stderr,"ul:%f\tdl:%llu\n",scb->ultilization,scb->deadline);         // display ultilization and deadline
+            fprintf(stderr,"DUAL %p\n",scb);
+            fprintf(stderr,"ul:%f\t%llu\tdl:%llu\n",scb->ultilization,scb->et,scb->deadline);         // display ultilization and deadline
             SCB_reduction_tree_print((SCB**)(&(scb->leaf)),level+1,0);
             SCB_reduction_tree_print(&(scb->next),level,index+1);
         break;
@@ -149,6 +168,25 @@ void TCB_list_print(TCB* TCB_list)
         fprintf(stderr,"job: %p\t%d\t%u\t%llu\t%p\n",tcb,tcb->tid,tcb->et,tcb->a_dl,tcb->something_else);
     }
 }
+
+void SVR_CNTNR_list_print(SVR_CNTNR* SVR_list)
+{
+    SCB* server    = NULL;
+    SVR_CNTNR* sc  = NULL;
+
+    if(SVR_list == NULL){return;}
+
+    for(sc=SVR_list;sc;sc=sc->next)
+    {
+        server = sc->scb;
+        if(server == NULL){fprintf(stderr,"This server is NULL\n");continue;}
+        fprintf(stderr,"%p\t%f\t%llu\t%llu\n",server,
+                                              server->ultilization,
+                                              server->et,
+                                              server->deadline);
+    }
+}
+
 #endif
 /***************************************************************************************/
 
@@ -402,7 +440,7 @@ void server_list_destory(SVR_CNTNR** server_list)
     while(*server_list)
     {
         sc = *server_list;
-        server_list = &(sc->next);
+        *server_list = sc->next;
         free(sc);
     }
 }
@@ -420,13 +458,14 @@ int server_list_update(SVR_CNTNR* server_list)
         scb = sc->scb;
         if(scb == NULL)
         {
-            fprintf(stderr,"server is NULL,in server_list_update\n");
+            fprintf(stderr,"Server is NULL,in server_list_update\n");
             kill(getpid(),SIG_SHOULD_NOT_HAPPENED);
         }
 
         scb->et--;
+#ifdef DEBUG
         fprintf(stderr,"scb %p\t%llu\n",scb,scb->et);
-        getchar();
+#endif
         if(scb->et == 0)
         {
 #ifdef DEBUG
@@ -530,7 +569,7 @@ SCB* SCB_dual_list_build(SCB** packed_SCB_list)
 void RUN_proper_server_remove(SCB** SCB_node,SCB** SCB_list)
 {
     SCB*  SCB_tmp = NULL;
-    SCB** scb = NULL;
+    SCB** scb     = NULL;
 
     overhead_dl += COMP+COMP+COMP;
     if(SCB_node==NULL || SCB_list==NULL || *SCB_list==NULL){return;}
@@ -538,8 +577,8 @@ void RUN_proper_server_remove(SCB** SCB_node,SCB** SCB_list)
     scb = SCB_list;
     if((*scb)->next == NULL)         // only one element in this SCB_list
     {
-        SCB_tmp = *scb;
-        *scb = ((*scb)->next);
+        SCB_tmp       = *scb;
+        *scb          = ((*scb)->next);
         SCB_tmp->next = NULL;
 
         if(*SCB_node == NULL){*SCB_node = SCB_tmp;}
@@ -555,7 +594,7 @@ void RUN_proper_server_remove(SCB** SCB_node,SCB** SCB_list)
     {
         overhead_dl += IADD+COMP;
         overhead_dl += COMP;
-        if((*scb)->ultilization == (double)1)
+        if(IS_EQUAL((*scb)->ultilization,(double)1))
         {
             SCB_tmp = *scb;
             *scb = ((*scb)->next);
@@ -598,7 +637,7 @@ SCB* SCB_reduction_tree_build(TCB** rq)
         overhead_dl += COMP+COMP;
 
         SCB_packed_server_list = SCB_list_pack(&SCB_server_list);
-#ifdef DEBG
+#ifdef DEBUG
         fprintf(stderr,"packed server \n");
         SCB_list_print(&SCB_packed_server_list);
         fprintf(stderr,"\n");
@@ -638,7 +677,13 @@ TCB_CNTNR* SCB_reduction_tree_TCB_CNTNR_search(SCB* SCB_node,TCB* tcb)
                 fprintf(stderr,"tc is NULL,in SCB_reduction_tree_TCB_CNTNR_search\n");
                 kill(getpid(),SIG_SHOULD_NOT_HAPPENED);
             }
-            if(tc->tid == tcb->tid){fprintf(stderr,"found target %d\n",tc->tid);return tc;}
+            if(tc->tid == tcb->tid)
+            {
+#ifdef DEBUG
+                fprintf(stderr,"found target %d\n",tc->tid);
+#endif
+                return tc;
+            }
             else if((tc=SCB_reduction_tree_TCB_CNTNR_search(SCB_node->next,tcb))!=NULL){return tc;}
             else{return NULL;}
         break;
@@ -727,7 +772,7 @@ void RUN_reduction_tree_unpack_by_root(SCB** SCB_node,int selected)
 
             // This part is quite confusing people
             earliest_ddl_SCB = NULL;
-            for(SCB_tmp = scb->leaf;SCB_tmp;SCB_tmp=SCB_tmp->next)
+            for(SCB_tmp = (SCB*)(scb->leaf);SCB_tmp;SCB_tmp=SCB_tmp->next)
             {
                 // Find the servser with rest execution time bigger than 0
                 if(SCB_tmp->et != 0)
@@ -768,42 +813,24 @@ void RUN_reduction_tree_unpack_by_root(SCB** SCB_node,int selected)
 void RUN_reduction_tree_unpack(SCB** SCB_node)
 {
     SCB* scb     = NULL;
-    SCB* SCB_min = NULL;
 
     overhead_dl += COMP+COMP;
     if(SCB_node==NULL || *SCB_node==NULL){return;}
-
-    server_list_destory(&selected_server_list);
-
-    SCB_min = *SCB_node;
 
     for(scb=*SCB_node;scb;scb=scb->next)
     {
         RUN_reduction_tree_unpack_by_root(&scb,1);
     }
-    /*
-    for(scb=*SCB_root;scb;scb=scb->next)
-    {
-        overhead_dl += IADD+COMP;
-        overhead_dl += COMP;
-        if(scb->deadline < SCB_min->deadline){SCB_min = scb;}
-        else
-        {
-            RUN_reduction_tree_unpack_by_root(&scb,0);
-        }
-    }
-    RUN_reduction_tree_unpack_by_root(&SCB_min,1);
-    */
 }
 
 void RUN_scheduling_initialize()
 {
     int i;
-    has_server_finished = 0;
-    SCB_root        = NULL;
-    execution_queue = NULL;
-    RUN_ready_queue = NULL;
-    update_tc       = NULL;
+    has_server_finished  = 0;
+    SCB_root             = NULL;
+    execution_queue      = NULL;
+    RUN_ready_queue      = NULL;
+    update_tc            = NULL;
     selected_server_list = NULL;
 
     for(i=0;i<MAX_TASKS;i++){assignment_history[i]=-1;}
@@ -846,48 +873,79 @@ void RUN_reorganize_function(TCB** rq)
     overhead_dl += COMP+COMP;
     if(!has_new_task && !has_new_instance && !has_server_finished){return;}
 
-    if(rq==NULL || *rq==NULL){return;}
+    if(rq==NULL || *rq==NULL)
+    {
+        server_list_destory(&selected_server_list);
+        execution_queue_destory(&execution_queue);
+        return;
+    }
 
 #ifdef DEBUG
-    fprintf(stderr,"tick : %llu\n",tick);
+    fprintf(stderr,"tick : %llu nt:%d ni:%d sf:%d\n",tick,has_new_task,has_new_instance,has_server_finished);
     fprintf(stderr,"Original TCB list:\n");
     TCB_list_print(p_ready_queue);
 #endif
 
     if(has_new_task)
     {
-#ifdef DEBUG
-        fprintf(stderr,"Has new task,will rebuild this reduction tree\n");
-#endif
         execution_queue_destory(&execution_queue);
 
         SCB_reduction_tree_destory(&SCB_root);
 
         SCB_root = SCB_reduction_tree_build(rq);
 #ifdef DEBUG
-        fprintf(stderr,"reduction tree print\n");
         SCB_reduction_tree_print(&SCB_root,0,0);
 #endif
+        server_list_destory(&selected_server_list);
+        
         RUN_reduction_tree_unpack(&SCB_root);
+#ifdef DEBUG
         execution_queue_print(execution_queue);
+#endif
     }
     else if(has_new_instance)
     {
 #ifdef DEBUG
         fprintf(stderr,"Has new instance,will update reduction tree\n"); 
+        fprintf(stderr,"old Servers:\n");
+        SVR_CNTNR_list_print(selected_server_list);
 #endif
         execution_queue_destory(&execution_queue);
 
+        server_list_destory(&selected_server_list);
+
+#ifdef DEBUG
+        SCB_reduction_tree_print(&SCB_root,0,0);
+#endif
+
         RUN_reduction_tree_unpack(&SCB_root);
+
+#ifdef DEBUG
+        fprintf(stderr,"New servers:\n");
+        SVR_CNTNR_list_print(selected_server_list);
+        execution_queue_print(execution_queue);
+#endif
     }
     else if(has_server_finished)
     {
 #ifdef DEBUG
         fprintf(stderr,"Has server finished,will unpack reduction tree again\n"); 
+        fprintf(stderr,"old Servers:\n");
+        SVR_CNTNR_list_print(selected_server_list);
 #endif
         execution_queue_destory(&execution_queue);
 
+        server_list_destory(&selected_server_list);
+#ifdef DEBUG
+        SCB_reduction_tree_print(&SCB_root,0,0);
+#endif
         RUN_reduction_tree_unpack(&SCB_root);
+
+#ifdef DEBUG
+        fprintf(stderr,"New servers:\n");
+        SVR_CNTNR_list_print(selected_server_list);
+        execution_queue_print(execution_queue);
+#endif
     }
 }
 
@@ -919,65 +977,49 @@ int processor_assignment(TCB* tcb)
     return processor_id;
 }
 
-/*
-Architecture of Scheduling function for RUN algorithm
-RUNScheduling:
-if has new task:
-    build reduction tree
-    search run
-else if has new instance:
-    update reduction tree
-    search run
-run scheduling
-*/
 void RUN_schedule()
 {
     int i,processor_id;
+    int assigned[PROCESSOR_NUM] = {0};
     TCB_CNTNR* tc = NULL;
     
     if(!has_new_instance && !has_new_task && !has_task_finished && !has_server_finished){return;}
 
-    if(has_new_instance || has_new_task)
+    if(has_new_instance || has_new_task || has_task_finished || has_server_finished)
     {
-        has_new_instance = has_new_task = has_task_finished = 0;
+        has_new_instance = has_new_task = has_task_finished = has_server_finished = 0;
 
         for(i=0;i<PROCESSOR_NUM;i++)
         {
             _kernel_runtsk[i] = NULL;
         }
     
-        for(i=0;i<PROCESSOR_NUM;i++)
+        while((tc=execution_queue_retrieve(&execution_queue)) != NULL)
         {
-            tc = execution_queue_retrieve(&execution_queue);
             if(tc == NULL){printf("tc is NULL,in RUN schedule\n");break;}
             if(tc->tcb == NULL){printf("tc->tcb is NULL,in RUN schedule\n");break;}
             
             processor_id = processor_assignment(tc->tcb);
-            if(processor_id == -1){printf("processor_id is -1,in RUN schedule\n");break;}
+            if(processor_id==-1 || assigned[processor_id])
+            {
+                
+                for(i=0;i<PROCESSOR_NUM;i++)
+                {
+                    if(!assigned[i]){break;}
+                }
+                if(i<PROCESSOR_NUM && i>=0){processor_id = i;}
+            }
             
+#ifdef DEBUG
+            fprintf(stderr,"tc %p,tcb %p,tid %d\n",tc,tc->tcb,tc->tcb->tid);
+#endif
+            // Since we didn't found any available Processor.
+            if(processor_id == -1){break;}
+
             _kernel_runtsk[processor_id] = tc->tcb;
+            assigned[processor_id] = 1;
+            
             assignment_history[tc->tcb->tid] = processor_id;
-            tc->tcb = NULL;
-        }
-    }
-    
-    if(has_task_finished||has_server_finished)
-    {
-        has_task_finished = 0;
-        fprintf(stderr,"Has task or server finished,in RUN_SCheduling\n");
-
-        for(i=0;i<PROCESSOR_NUM;i++)
-        {
-            if(_kernel_runtsk[i] != NULL){continue;}
-
-            tc = execution_queue_retrieve(&execution_queue);
-            if(tc == NULL){printf("tc is NULL,in RUN schedule\n");break;}
-            if(tc->tcb == NULL){printf("tc->tcb is NULL,in RUN schedule\n");break;}
-           
-            fprintf(stderr,"tc %p,tcb %p,tid %d\n",tc,tc->tcb,tc->tcb->tid); 
-            _kernel_runtsk[i] = tc->tcb;
-            assignment_history[tc->tcb->tid] = i;
-            tc->tcb = NULL;
         }
     }
 
