@@ -1,4 +1,3 @@
-
 /*
 Architecture of Scheduling function for RUN algorithm
 RUNScheduling:
@@ -745,7 +744,7 @@ void SCB_reduction_tree_destory(SCB** SCB_node)
     free(scb);
 }
 
-void RUN_reduction_tree_unpack_by_root(SCB** SCB_node,int selected)
+void SCB_reduction_tree_unpack_by_root(SCB** SCB_node,int selected)
 {
     SCB* scb              = NULL;
     SCB* SCB_tmp          = NULL;
@@ -788,29 +787,29 @@ void RUN_reduction_tree_unpack_by_root(SCB** SCB_node,int selected)
                         else
                         {
                             // These server`s deadline is not the earliest deadline
-                            RUN_reduction_tree_unpack_by_root(&(SCB_tmp),0);
+                            SCB_reduction_tree_unpack_by_root(&(SCB_tmp),0);
                         }   
                     }
                 }
                 else
                 {
                     // These server`s rest exectuion time is 0
-                    RUN_reduction_tree_unpack_by_root(&(SCB_tmp),0);
+                    SCB_reduction_tree_unpack_by_root(&(SCB_tmp),0);
                 }
             }
             
             //This is the server which we are looking for.
-            RUN_reduction_tree_unpack_by_root(&earliest_ddl_SCB,1);
+            SCB_reduction_tree_unpack_by_root(&earliest_ddl_SCB,1);
             server_list_insert(&selected_server_list,earliest_ddl_SCB);
         break;
 
         case DUAL: 
-            RUN_reduction_tree_unpack_by_root((SCB**)(&(scb->leaf)),!selected);
+            SCB_reduction_tree_unpack_by_root((SCB**)(&(scb->leaf)),!selected);
         break;
     }
 }
 
-void RUN_reduction_tree_unpack(SCB** SCB_node)
+void SCB_reduction_tree_unpack(SCB** SCB_node)
 {
     SCB* scb     = NULL;
 
@@ -819,7 +818,7 @@ void RUN_reduction_tree_unpack(SCB** SCB_node)
 
     for(scb=*SCB_node;scb;scb=scb->next)
     {
-        RUN_reduction_tree_unpack_by_root(&scb,1);
+        SCB_reduction_tree_unpack_by_root(&scb,1);
     }
 }
 
@@ -898,7 +897,7 @@ void RUN_reorganize_function(TCB** rq)
 #endif
         server_list_destory(&selected_server_list);
         
-        RUN_reduction_tree_unpack(&SCB_root);
+        SCB_reduction_tree_unpack(&SCB_root);
 #ifdef DEBUG
         execution_queue_print(execution_queue);
 #endif
@@ -918,7 +917,7 @@ void RUN_reorganize_function(TCB** rq)
         SCB_reduction_tree_print(&SCB_root,0,0);
 #endif
 
-        RUN_reduction_tree_unpack(&SCB_root);
+        SCB_reduction_tree_unpack(&SCB_root);
 
 #ifdef DEBUG
         fprintf(stderr,"New servers:\n");
@@ -939,7 +938,7 @@ void RUN_reorganize_function(TCB** rq)
 #ifdef DEBUG
         SCB_reduction_tree_print(&SCB_root,0,0);
 #endif
-        RUN_reduction_tree_unpack(&SCB_root);
+        SCB_reduction_tree_unpack(&SCB_root);
 
 #ifdef DEBUG
         fprintf(stderr,"New servers:\n");
@@ -1034,4 +1033,16 @@ void RUN_schedule()
     
 }
 
-void RUN_scheduling_exit(){}
+void RUN_scheduling_exit()
+{
+    SCB_reduction_tree_destory(&SCB_root);
+
+    server_list_destory(&selected_server_list);
+
+    execution_queue_destory(&execution_queue);
+
+#ifdef DEBUG
+    printf("RUN end normally\n");
+#endif
+
+}

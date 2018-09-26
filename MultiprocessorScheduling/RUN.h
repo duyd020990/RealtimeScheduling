@@ -38,6 +38,7 @@ typedef struct svr_cntnr
 }SVR_CNTNR;
 
 void RUN_scheduling_initialize();
+
 void RUN_scheduling_exit();
 
 int RUN_insert_OK(TCB*,TCB*);
@@ -45,8 +46,5 @@ int RUN_insert_OK(TCB*,TCB*);
 void RUN_reorganize_function(TCB**);
 
 void RUN_schedule();
-
-void TCB_list_print(TCB* rq);
-
 
 #endif
