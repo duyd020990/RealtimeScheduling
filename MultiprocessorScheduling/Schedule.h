@@ -44,7 +44,7 @@ typedef struct tcb {
     void*              something_else;
     struct tcb         *next;
     struct tcb         *prev;
-} TCB;
+}TCB;
 
 /*
     This is how I define a scheduling algorithm
@@ -56,21 +56,36 @@ typedef struct
     void* scheduling;
     void* insert_OK;
     void* reorganize_function;
+    void* scheduling_update;
 }SCHEDULING_ALGORITHM;
-
 
 /* Prototype */
 void   insert_queue ( TCB **rq, TCB *entry, void* function);
+
 void   insert_queue_RM ( TCB **rq, TCB *entry );
+
 void   insert_queue_fifo ( TCB **rq, TCB *entry );
+
 void   delete_queue(TCB** rq,TCB* tcb);
-//void   delete_queue ( TCB **rq,int tid );
+
 void   from_fifo_to_ap ( void );
+
 void   run_simulation(char* s,SCHEDULING_ALGORITHM sa);
+
 void   Initialize ( void );
+
 void   Tick_inc ( );
+
 TCB   *entry_set ( int );
+
 void   Job_exit ( const char *, int ,int );
+
 void   Overhead_Record ( void );
+
+void deadline_miss_log(const char* s,TCB* );
+
+int multi_TCB_check(char* s,TCB** );
+
+void TCB_list_print(TCB* TCB_list);
 
 #endif

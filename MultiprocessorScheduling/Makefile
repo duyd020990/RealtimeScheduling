@@ -8,10 +8,10 @@ all:		$(TARGET)
 
 
 Schedule.o:Schedule.c Schedule.h
-	$(CC) -c $(CFLAGS) Schedule.c
+	gcc -c $(CFLAGS) Schedule.c
 
 Schedule:$(objects)
-	$(CC) -o Schedule $(objects) $(LDFLAGS) 
+	gcc -o Schedule $(objects) $(LDFLAGS) 
 	mv *.o Schedule ../
 
 clean:;		rm -f $(TARGET) *.o

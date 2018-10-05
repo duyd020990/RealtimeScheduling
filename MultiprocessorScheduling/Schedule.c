@@ -3,6 +3,7 @@
 #include <math.h>
 #include <time.h>
 #include <string.h>
+#include <unistd.h>
 
 #include "Schedule.h"
 #include "signal.h"
@@ -11,7 +12,7 @@
 //#include "RM.h"
 //#include "LSF.h"
 //#include "EDF.h"
-#include "LLREF.h"
+//#include "LLREF.h"
 #include "RUN.h"
 
 //#define AP_ALSO
@@ -362,6 +363,12 @@ void run_simulation(char* s,SCHEDULING_ALGORITHM sa)
                     insert_queue_fifo ( &fifo_ready_queue, entry );
                 }
                 inst_no[i]++;
+                if(multi_TCB_check(s,&p_ready_queue) > 0)
+                {
+                    fprintf(stderr,"multi TCB detected,in run_simulation\n");
+                    TCB_list_print(p_ready_queue);
+                    kill(getpid(),SIG_SHOULD_NOT_HAPPENED);
+                }
             }
         }
         reorganize_function(&p_ready_queue);
@@ -374,7 +381,7 @@ void run_simulation(char* s,SCHEDULING_ALGORITHM sa)
         /* Scheduling */
         scheduling();
         /* Tick increment/et decrement and Setting last_empty & used_dl*/
-        Tick_inc ();
+        Tick_inc (sa.scheduling_update);
         //fprintf(stderr, "Tick: %d\n", tick);
         //getchar();
         for(processor_id=0;processor_id<PROCESSOR_NUM;processor_id++)
@@ -557,9 +564,10 @@ TCB *entry_set ( int i)
     return entry;
 }
 
-void Tick_inc ( )
+void Tick_inc (void* update_function)
 {
     int i;
+    void (*scheduling_update)() = NULL;
 
     Overhead_Record ( );
     
@@ -569,9 +577,16 @@ void Tick_inc ( )
     {
         if ( _kernel_runtsk[i] != NULL ) 
         {
-            --(_kernel_runtsk[i] -> et);
+            (_kernel_runtsk[i] -> et)--;
         }   
     }
+
+    if(update_function != NULL)
+    {
+        scheduling_update = update_function;
+        scheduling_update();
+    }
+
     return;
 }
 
@@ -607,11 +622,12 @@ void Job_exit ( const char *s, int rr, int processor_id) /* rr: resource reclaim
 
     if ( _kernel_runtsk[processor_id] -> a_dl < tick ) 
     {
-        fprintf( stderr, "\n# MISS: %s: tick=%lld: DL=%lld: TID=%d: INST_NO=%d, WCET=%d, ET=%d, req_tim=%lld\n",
+        deadline_miss_log(s,_kernel_runtsk[processor_id]);
+        /*fprintf( stderr, "\n# MISS: %s: tick=%lld: DL=%lld: TID=%d: INST_NO=%d, WCET=%d, ET=%d, req_tim=%lld\n",
            s, tick, _kernel_runtsk[processor_id]->a_dl, _kernel_runtsk[processor_id]->tid, _kernel_runtsk[processor_id]->inst_no,
            wcet[_kernel_runtsk[processor_id]->tid], _kernel_runtsk[processor_id]->initial_et, _kernel_runtsk[processor_id]->req_tim );
         printf( "\n# MISS: %s: tick=%lld: DL=%lld: TID=%d: INST_NO=%d\n",
-           s, tick, _kernel_runtsk[processor_id]->a_dl,  _kernel_runtsk[processor_id]->tid, _kernel_runtsk[processor_id]->inst_no);
+           s, tick, _kernel_runtsk[processor_id]->a_dl,  _kernel_runtsk[processor_id]->tid, _kernel_runtsk[processor_id]->inst_no);*/
     }
 
     exec_times[ _kernel_runtsk[processor_id] -> tid]++;
@@ -637,3 +653,48 @@ void Job_exit ( const char *s, int rr, int processor_id) /* rr: resource reclaim
     return;
 }
 
+void deadline_miss_log(const char* s,TCB* tcb)
+{
+
+    fprintf( stderr, "\n# MISS: %s: tick=%lld: DL=%lld: TID=%d: INST_NO=%d, WCET=%d, ET=%d, req_tim=%lld\n",
+           s, tick, tcb->a_dl, tcb->tid, tcb->inst_no, wcet[tcb->tid], tcb->initial_et, tcb->req_tim );
+    printf( "\n# MISS: %s: tick=%lld: DL=%lld: TID=%d: INST_NO=%d\n",
+           s, tick, tcb->a_dl, tcb->tid, tcb->inst_no);
+}
+
+int multi_TCB_check(char* s,TCB** rq)
+{
+    int check_result;
+
+    TCB* tcb_p = NULL;
+    TCB* tcb_q = NULL;
+
+    if(rq==NULL || *rq==NULL){fprintf(stderr,"rq or *rq is NULL,in multi_TCB_check\n");return -1;}
+
+    check_result = 0;
+    for(tcb_p=*rq;tcb_p;tcb_p=tcb_p->next)
+    {
+        for(tcb_q=tcb_p->next;tcb_q;tcb_q=tcb_q->next)
+        {
+            if(tcb_p->tid == tcb_q->tid)
+            {
+                check_result++;
+            }
+        }
+    }
+
+    return check_result;
+}
+
+
+void TCB_list_print(TCB* TCB_list)
+{
+    TCB* tcb = NULL;
+
+    if(TCB_list == NULL){fprintf(stderr,"TCB_list is NULL,in TCB_list_print\n");return;}
+
+    for(tcb=TCB_list;tcb;tcb=tcb->next)
+    {
+        fprintf(stderr,"job: %p\t%d\t%u\t%llu\t%p\n",tcb,tcb->tid,tcb->et,tcb->a_dl,tcb->something_else);
+    }
+}

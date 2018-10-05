@@ -14,7 +14,9 @@ typedef struct scb
 {
     int                is_pack;      //Determin this is a pack or a dual server.
     double             ultilization; //The total ultilization of this pack or dual server.
-    unsigned long long deadline;     //The deadline of this pack or dual server.
+    unsigned long long a_dl;         //The deadline of this pack or dual server
+    unsigned long long r_dl;
+    unsigned long long req_tim;         //Realeative deadline,will be used when calculate the et
     unsigned long long et;
     struct scb*        root;
     void*              leaf;         //For those packed server,this point to a list of sub-server.For a dual server,this point to the another phase of this dual server. 
@@ -46,5 +48,7 @@ int RUN_insert_OK(TCB*,TCB*);
 void RUN_reorganize_function(TCB**);
 
 void RUN_schedule();
+
+void RUN_scheduling_update();
 
 #endif

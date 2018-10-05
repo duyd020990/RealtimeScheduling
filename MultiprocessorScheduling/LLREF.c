@@ -406,6 +406,7 @@ void LLREF_scheduling()
         if(processor_id==-1 || assigned[processor_id])
         {
             // Search a available processor
+            processor_id = -1;
             for(i=0;i<PROCESSOR_NUM;i++)
             {
                 overhead_dl += IADD+COMP;
