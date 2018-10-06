@@ -60,8 +60,6 @@ TCB_CNTNR* execution_queue;
 TCB_CNTNR* update_tc;
 TCB* RUN_ready_queue;
 
-void SCB_list_sort(SCB*);
-int SCB_reduction_tree_node_update(SCB*);
 
 SCHEDULING_ALGORITHM RUN_sa = {
     .scheduling_initialize = RUN_scheduling_initialize,
@@ -72,6 +70,15 @@ SCHEDULING_ALGORITHM RUN_sa = {
     .scheduling_update     = RUN_scheduling_update
 };
 
+double round(double number)
+{
+    long long integer = number;
+    number = number - (double)integer;
+    if(IS_EQUAL(number,0.5)){number = 0.5;}
+    number = number+integer;
+
+    return number;
+}
 
 /*************************** FOR DEBUG ***********************************/
 #ifdef DEBUG
@@ -269,7 +276,7 @@ int SCB_pack_fill(SCB* packed_SCB,SCB* scb)
     if(packed_SCB->is_pack != PACK)  {return 0;}
 
     // Calculate the total ultilization,if this server put in this pack
-    overhead_dl += IADD; 
+    overhead_dl += FADD; 
     total_ultilization = (packed_SCB->ultilization)+(scb->ultilization);
     
     //Is it available to put this server into this pack
@@ -290,7 +297,7 @@ int SCB_pack_fill(SCB* packed_SCB,SCB* scb)
             packed_SCB->r_dl = scb->a_dl;
         }
 
-        packed_SCB->et = llround(total_ultilization * packed_SCB->a_dl);
+        packed_SCB->et = llround(round(total_ultilization * packed_SCB->a_dl));
         
         //New server is a "leaf" for this pack
         scb->root = packed_SCB;
@@ -411,7 +418,7 @@ SCB* SCB_to_dual(SCB* scb)
     SCB_dual->r_dl         = scb->r_dl;
     SCB_dual->ultilization = (double)1-(scb->ultilization);
 
-    SCB_dual->et           = (SCB_dual->a_dl) * (SCB_dual->ultilization);
+    SCB_dual->et           = SCB_dual->r_dl - scb->et;//(SCB_dual->a_dl) * (SCB_dual->ultilization);
     SCB_dual->leaf         = (void*)scb;
     SCB_dual->next         = NULL;
 
@@ -479,10 +486,7 @@ int server_list_update(SVR_CNTNR* server_list)
             if(tcb == NULL){fprintf(stderr,"tcb is NULL,in server_list_update\n");kill(getpid(),SIG_SHOULD_NOT_HAPPENED);}
             scb->et = tcb->et;
         }
-        else
-        {
-            scb->et--;   
-        }
+        else{scb->et--;}
 
 #ifdef DEBUG
         fprintf(stderr,"scb %p\t%llu\n",scb,scb->et);
@@ -525,17 +529,11 @@ void execution_queue_insert(TCB_CNTNR* new_tc)
             *tc = new_tc;
             return;
         }
-        else
-        {
-            tc = &((*tc)->next);
-        }
+        else{tc = &((*tc)->next);}
     }
 
     overhead_dl += COMP;
-    if(*tc == NULL)
-    {
-        *tc = new_tc;
-    }
+    if(*tc == NULL){*tc = new_tc;}
 }
 
 TCB_CNTNR* execution_queue_retrieve(TCB_CNTNR** TCB_CNTNR_list)
@@ -631,10 +629,7 @@ void RUN_proper_server_remove(SCB** SCB_node,SCB** SCB_list)
                 *SCB_node = SCB_tmp;
             }
         }
-        else
-        {
-            scb=&((*scb)->next);
-        }
+        else{scb=&((*scb)->next);}
     }
 }
 
@@ -734,10 +729,7 @@ SCB* SCB_list_element_get(SCB* SCB_list)
             if(SCB_earliest == NULL){SCB_earliest = scb;}
             else
             {
-                if(SCB_earliest->a_dl > scb->a_dl)
-                {
-                    SCB_earliest = scb;
-                }
+                if(SCB_earliest->a_dl > scb->a_dl){SCB_earliest = scb;}
             }
         }
     }
@@ -773,7 +765,7 @@ int SCB_reduction_tree_node_update(SCB* SCB_node)
             {
                 SCB_node->a_dl = earliest_dl;
                 SCB_node->r_dl = earliest_dl - tick;
-                SCB_node->et   = llround(SCB_node->r_dl * SCB_node->ultilization);
+                SCB_node->et   = llround(round(SCB_node->r_dl * SCB_node->ultilization));
             }
             return updated;
         break;
@@ -786,7 +778,7 @@ int SCB_reduction_tree_node_update(SCB* SCB_node)
             
             SCB_node->a_dl = scb->a_dl;
             SCB_node->r_dl = scb->r_dl;
-            SCB_node->et   = SCB_node->r_dl * SCB_node->ultilization;
+            SCB_node->et   = SCB_node->r_dl - scb->et;//SCB_node->r_dl * SCB_node->ultilization;
             return 1;
         break;
 
@@ -922,7 +914,6 @@ void SCB_reduction_tree_unpack(SCB** SCB_node)
 
     for(scb=*SCB_node;scb;scb=scb->next)
     {
-        //SCB_reduction_tree_unpack_by_node(&scb,1);
         if(scb->et > 0)
         {
             SCB_reduction_tree_unpack_by_node(&scb,1);
