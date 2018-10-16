@@ -60,7 +60,6 @@ TCB_CNTNR* execution_queue;
 TCB_CNTNR* update_tc;
 TCB* RUN_ready_queue;
 
-
 SCHEDULING_ALGORITHM RUN_sa = {
     .scheduling_initialize = RUN_scheduling_initialize,
     .scheduling_exit       = RUN_scheduling_exit,
@@ -70,15 +69,13 @@ SCHEDULING_ALGORITHM RUN_sa = {
     .scheduling_update     = RUN_scheduling_update
 };
 
-double round(double number)
+double my_round(double number)
 {
-    long long integer = number;
-    number = number - (double)integer;
-    if(IS_EQUAL(number,0.5)){number = 0.5;}
-    number = number+integer;
-
-    return number;
+    overhead_dl += FMUL+FDIV;
+    return ((round(number*10.0))/10.0);
 }
+
+FILE* debug_f;
 
 /*************************** FOR DEBUG ***********************************/
 #ifdef DEBUG
@@ -95,7 +92,7 @@ void SCB_list_print(SCB** scb_list)
 
     for(scb = *scb_list,i=0;scb;scb = scb->next,i++)
     {
-        fprintf(stderr,"%p\t%d\t%llu\t%f\t%llu\t%p\n",scb              ,
+        fprintf(debug_f,"%p\t%d\t%f\t%f\t%llu\t%p\n",scb              ,
                                                       i                ,
                                                       scb->et          ,
                                                       scb->ultilization,
@@ -110,22 +107,22 @@ void SCB_reduction_tree_print(SCB** SCB_node,int level,int index)
     TCB*      tcb = NULL;
     TCB_CNTNR* tc = NULL;
 
-    if(SCB_node==NULL || *SCB_node==NULL){fprintf(stderr,"SCB_node is NULL,in SCB_reduction_tree_print\n");return;}
+    if(SCB_node==NULL || *SCB_node==NULL){fprintf(debug_f,"SCB_node is NULL,in SCB_reduction_tree_print\n");return;}
     
-    fprintf(stderr,"level %d-%d:",level,index);
+    fprintf(debug_f,"level %d-%d:",level,index);
 
     scb = *SCB_node;
     switch(scb->is_pack)
     {
         case LEAF:
-            fprintf(stderr,"LEAF %p\n",scb);
+            fprintf(debug_f,"LEAF %p\n",scb);
             tc = (TCB_CNTNR*)(scb->leaf);
-            if(tc == NULL){fprintf(stderr,"tc is NULL, in SCB_reduction_tree_print\n");while(1);}
+            if(tc == NULL){fprintf(stderr,"tc is NULL, in SCB_reduction_tree_print\n");while(TRUE);}
             tcb = tc->tcb;
             if(tcb == NULL){fprintf(stderr,"This tc was exhausted, tid %d\n",tc->tid);}
             else
             {
-                fprintf(stderr,"%p\ttid:%d\ttet:%u\tset:%llu\tdl:%llu\n",scb,
+                fprintf(debug_f,"%p\ttid:%d\ttet:%u\tset:%f\tdl:%llu\n",scb,
                                                   tc->tid,
                                                   tcb->et,
                                                   scb->et,
@@ -134,16 +131,20 @@ void SCB_reduction_tree_print(SCB** SCB_node,int level,int index)
             SCB_reduction_tree_print(&(scb->next),level,index+1);
         break;
 
+        case DUMMY:
+            fprintf(debug_f,"DUMMY\n");
+        break;
+
         case PACK:
-            fprintf(stderr,"PACK %p\n",scb);
-            fprintf(stderr,"level:%d\tul:%f\tet:%llu\tdl:%llu\n",level,scb->ultilization,scb->et,scb->a_dl);         // display ultilization and deadline
+            fprintf(debug_f,"PACK %p\n",scb);
+            fprintf(debug_f,"level:%d\tul:%f\tet:%f\tdl:%llu\n",level,scb->ultilization,scb->et,scb->a_dl);         // display ultilization and deadline
             SCB_reduction_tree_print((SCB**)(&(scb->leaf)),level+1,0);
             SCB_reduction_tree_print(&(scb->next),level,index+1);
         break;
 
         case DUAL: 
-            fprintf(stderr,"DUAL %p\n",scb);
-            fprintf(stderr,"ul:%f\tet:%llu\trdl:%llu\tadl:%llu\n",scb->ultilization,scb->et,scb->r_dl,scb->a_dl);         // display ultilization and deadline
+            fprintf(debug_f,"DUAL %p\n",scb);
+            fprintf(debug_f,"ul:%f\tet:%f\trdl:%llu\tadl:%llu\n",scb->ultilization,scb->et,scb->r_dl,scb->a_dl);         // display ultilization and deadline
             SCB_reduction_tree_print((SCB**)(&(scb->leaf)),level+1,0);
             SCB_reduction_tree_print(&(scb->next),level,index+1);
         break;
@@ -156,7 +157,7 @@ void execution_queue_print(TCB_CNTNR* TC_list)
     TCB_CNTNR* tc = NULL;
     if(TC_list == NULL)
     {
-        fprintf(stderr,"TC_list is NULL,in execution_queue_print\n");
+        fprintf(debug_f,"TC_list is NULL,in execution_queue_print\n");
         return;
     }
 
@@ -165,7 +166,7 @@ void execution_queue_print(TCB_CNTNR* TC_list)
         tcb = tc->tcb;
         if(tcb == NULL){fprintf(stderr,"tcb is NULL,in execution_queue_print\n");kill(getpid(),SIG_SHOULD_NOT_HAPPENED);}
 
-        fprintf(stderr,"job:%p\t%d\t%u\t%llu\t%p\n",tcb,tcb->tid,tcb->et,tcb->a_dl,tcb->something_else);
+        fprintf(debug_f,"job:%p\t%d\t%u\t%llu\t%p\n",tcb,tcb->tid,tcb->et,tcb->a_dl,tcb->something_else);
     }
 }
 
@@ -179,8 +180,8 @@ void SVR_CNTNR_list_print(SVR_CNTNR* SVR_list)
     for(sc=SVR_list;sc;sc=sc->next)
     {
         server = sc->scb;
-        if(server == NULL){fprintf(stderr,"This server is NULL\n");continue;}
-        fprintf(stderr,"%p\t%f\t%llu\t%llu\n",server,
+        if(server == NULL){fprintf(debug_f,"This server is NULL\n");continue;}
+        fprintf(debug_f,"%p\t%f\t%f\t%llu\n",server,
                                               server->ultilization,
                                               server->et,
                                               server->a_dl);
@@ -228,13 +229,37 @@ SCB* TCB_to_SCB(TCB* tcb)
 
     overhead_dl += FDIV;
     scb->is_pack          = LEAF;
-    scb->ultilization     = ((double)tcb->wcet)/period[tcb->tid];
+    scb->ultilization     = my_round(((double)tcb->wcet)/period[tcb->tid]);
     scb->a_dl             = tcb->a_dl;
     scb->r_dl             = period[tcb->tid];
     scb->req_tim          = tcb->req_tim;
-    scb->et               = tcb->et;
+    scb->et               = (double)tcb->et;
     scb->leaf             = (void*)tc; 
     scb->next = scb->root = NULL;
+
+    return scb;
+}
+
+SCB* dummy_SCB_create(double ultilization)
+{
+    SCB* scb = NULL;
+
+    overhead_dl += COMP;
+    if(ultilization <= 0){return NULL;}
+
+    overhead_dl += ASSIGN+MEM;
+    scb = (SCB*)malloc(sizeof(SCB));
+    if(scb == NULL){fprintf(stderr,"scb is NULL,in dummy_SCB_create\n");kill(getpid(),SIG_SHOULD_NOT_HAPPENED);}
+
+    scb->is_pack      = DUMMY;
+    scb->ultilization = ultilization;
+    scb->a_dl         = 0xFFFFFFFF;
+    scb->r_dl         = 0xFFFFFFFF;
+    scb->req_tim      = 0xFFFFFFFF;
+    scb->et           = (double)0xFFFFFFFF;
+    scb->root         = NULL;
+    scb->leaf         = NULL;
+    scb->next         = NULL;
 
     return scb;
 }
@@ -277,7 +302,7 @@ int SCB_pack_fill(SCB* packed_SCB,SCB* scb)
 
     // Calculate the total ultilization,if this server put in this pack
     overhead_dl += FADD; 
-    total_ultilization = (packed_SCB->ultilization)+(scb->ultilization);
+    total_ultilization = my_round((packed_SCB->ultilization)+(scb->ultilization));
     
     //Is it available to put this server into this pack
     overhead_dl += COMP;
@@ -287,17 +312,17 @@ int SCB_pack_fill(SCB* packed_SCB,SCB* scb)
         packed_SCB->ultilization = total_ultilization;
         
         //If the new server has later deadline, then extend the deadline of this pack.
-        overhead_dl += COMP;
-        
         scb->root = packed_SCB;
 
+        overhead_dl += COMP;
         if(packed_SCB->a_dl > scb->a_dl)
         {
             packed_SCB->a_dl = scb->a_dl;
             packed_SCB->r_dl = scb->a_dl;
         }
 
-        packed_SCB->et = llround(round(total_ultilization * packed_SCB->a_dl));
+        overhead_dl += FMUL;
+        packed_SCB->et = my_round(total_ultilization * packed_SCB->a_dl);
         
         //New server is a "leaf" for this pack
         scb->root = packed_SCB;
@@ -314,9 +339,10 @@ int SCB_pack_fill(SCB* packed_SCB,SCB* scb)
 
 SCB* SCB_list_build(TCB** rq)
 {
-    TCB* p        = NULL;
-    SCB* scb      = NULL;
-    SCB* scb_list = NULL;
+    TCB* p              = NULL;
+    SCB* scb            = NULL;
+    SCB* scb_list       = NULL;
+    double ultilization = (double)0;
 
     overhead_dl += COMP+COMP;
     if(rq==NULL || *rq==NULL){fprintf(stderr,"rq is NULL,in SCB_list_build\n");return NULL;}
@@ -324,9 +350,34 @@ SCB* SCB_list_build(TCB** rq)
     for(p = *rq;p;p=p->next)
     {
         overhead_dl += IADD+COMP;
-        
+
         scb = TCB_to_SCB(p);
+        ultilization += scb->ultilization;
         
+        overhead_dl += COMP;
+        if(scb_list == NULL){scb_list = scb;}
+        else
+        {
+            scb->next = scb_list;
+            scb_list  = scb;
+        }
+    }
+
+    for(ultilization=((double)PROCESSOR_NUM)-ultilization;ultilization>0;)
+    {
+        if(ultilization>1)
+        {
+            overhead_dl += FADD;
+            scb = dummy_SCB_create((double)1);
+            ultilization = ultilization - (double)1;       
+        }
+        else
+        {
+            overhead_dl += FADD;
+            scb = dummy_SCB_create(ultilization);
+            ultilization -= ultilization;
+        }
+
         overhead_dl += COMP;
         if(scb_list == NULL){scb_list = scb;}
         else
@@ -412,13 +463,12 @@ SCB* SCB_to_dual(SCB* scb)
     SCB_dual = (SCB*)malloc(sizeof(SCB));
     if(SCB_dual == NULL){fprintf(stderr,"Error with malloc,in SCB_to_dual\n");return NULL;}
 
-    overhead_dl += FADD;
+    overhead_dl += FADD + FMUL;
     SCB_dual->is_pack      = DUAL;
     SCB_dual->a_dl         = scb->a_dl;
     SCB_dual->r_dl         = scb->r_dl;
-    SCB_dual->ultilization = (double)1-(scb->ultilization);
-
-    SCB_dual->et           = SCB_dual->r_dl - scb->et;//(SCB_dual->a_dl) * (SCB_dual->ultilization);
+    SCB_dual->ultilization = my_round((double)1-(scb->ultilization));
+    SCB_dual->et           = my_round(SCB_dual->ultilization * SCB_dual->r_dl);
     SCB_dual->leaf         = (void*)scb;
     SCB_dual->next         = NULL;
 
@@ -431,8 +481,10 @@ void server_list_insert(SVR_CNTNR** server_list,SCB* server)
 {
     SVR_CNTNR* sc = NULL;
 
+    overhead_dl += COMP+COMP;
     if(server_list==NULL || server==NULL){return;}
 
+    overhead_dl += ASSIGN+MEM+COMP;
     sc = (SVR_CNTNR*)malloc(sizeof(SVR_CNTNR));
     if(sc == NULL)
     {
@@ -449,12 +501,16 @@ void server_list_destory(SVR_CNTNR** server_list)
 {
     SVR_CNTNR* sc = NULL;
 
+    overhead_dl += COMP+COMP;
     if(server_list==NULL || *server_list==NULL){return;}
 
+    overhead_dl += COMP;
     while(*server_list)
     {
         sc = *server_list;
         *server_list = sc->next;
+
+        overhead_dl += MEM;
         free(sc);
     }
 }
@@ -467,10 +523,14 @@ int server_list_update(SVR_CNTNR* server_list)
     SCB*      scb   = NULL;
     TCB*      tcb   = NULL;
 
+    overhead_dl += COMP;
     if(server_list == NULL){return 0;}
 
     for(sc=server_list;sc;sc=sc->next)
     {
+        overhead_dl += COMP+MEM;
+
+        overhead_dl += COMP;
         scb = sc->scb;
         if(scb == NULL)
         {
@@ -478,24 +538,31 @@ int server_list_update(SVR_CNTNR* server_list)
             kill(getpid(),SIG_SHOULD_NOT_HAPPENED);
         }
 
+        overhead_dl += COMP;
         if(scb->is_pack == LEAF)
         {
+            overhead_dl += COMP+COMP;
             tc = (TCB_CNTNR*)(scb->leaf);
             if(tc == NULL){fprintf(stderr,"tc is NULL,in server_list_update\n");kill(getpid(),SIG_SHOULD_NOT_HAPPENED);}
             tcb = tc->tcb;
             if(tcb == NULL){fprintf(stderr,"tcb is NULL,in server_list_update\n");kill(getpid(),SIG_SHOULD_NOT_HAPPENED);}
             scb->et = tcb->et;
         }
-        else{scb->et--;}
+        else
+        {
+            overhead_dl += FADD;
+            scb->et-=(double)1;
+        }
 
 #ifdef DEBUG
-        fprintf(stderr,"scb %p\t%llu\n",scb,scb->et);
+        fprintf(debug_f,"scb %p\t%f\n",scb,scb->et);
 #endif
 
-        if(scb->et == 0)
+        overhead_dl += COMP;
+        if(scb->et <= (double)0)
         {
 #ifdef DEBUG
-            fprintf(stderr,"Server exhausted : %p\n",scb);
+            fprintf(debug_f,"Server exhausted : %p\n",scb);
 #endif
         
             zero_cnt++;
@@ -540,6 +607,7 @@ TCB_CNTNR* execution_queue_retrieve(TCB_CNTNR** TCB_CNTNR_list)
 {
     TCB_CNTNR* tc=NULL;
     
+    overhead_dl += COMP+COMP;
     if(TCB_CNTNR_list==NULL || *TCB_CNTNR_list==NULL){return NULL;}
     
     tc              = *TCB_CNTNR_list;
@@ -552,9 +620,10 @@ TCB_CNTNR* execution_queue_retrieve(TCB_CNTNR** TCB_CNTNR_list)
 
 void execution_queue_destory(TCB_CNTNR** TCB_CNTNR_queue)
 {
+    overhead_dl += COMP+COMP;
     if(TCB_CNTNR_queue==NULL || *TCB_CNTNR_queue==NULL){return;}
     
-    while(execution_queue_retrieve(TCB_CNTNR_queue)!=NULL);
+    while(execution_queue_retrieve(TCB_CNTNR_queue)!=NULL){overhead_dl += COMP;}
 }
 
 SCB* SCB_dual_list_build(SCB** packed_SCB_list)
@@ -595,6 +664,7 @@ void RUN_proper_server_remove(SCB** SCB_node,SCB** SCB_list)
     overhead_dl += COMP+COMP+COMP;
     if(SCB_node==NULL || SCB_list==NULL || *SCB_list==NULL){return;}
 
+    overhead_dl += COMP;
     scb = SCB_list;
     if((*scb)->next == NULL)         // only one element in this SCB_list
     {
@@ -602,6 +672,7 @@ void RUN_proper_server_remove(SCB** SCB_node,SCB** SCB_list)
         *scb          = ((*scb)->next);
         SCB_tmp->next = NULL;
 
+        overhead_dl += COMP;
         if(*SCB_node == NULL){*SCB_node = SCB_tmp;}
         else
         {
@@ -614,7 +685,7 @@ void RUN_proper_server_remove(SCB** SCB_node,SCB** SCB_list)
     for(scb = SCB_list;*scb;)
     {
         overhead_dl += IADD+COMP;
-        overhead_dl += COMP;
+        overhead_dl += COMP+FADD;
         if(IS_EQUAL((*scb)->ultilization,(double)1))
         {
             SCB_tmp = *scb;
@@ -645,34 +716,34 @@ SCB* SCB_reduction_tree_build(TCB** rq)
 
     SCB_server_list = SCB_list_build(rq);
 #ifdef DEBUG
-    fprintf(stderr,"scb list server \n");
+    fprintf(debug_f,"scb list server \n");
     SCB_list_print(&SCB_server_list);
-    fprintf(stderr,"\n");
+    fprintf(debug_f,"\n");
 #endif
 
-    while(1)
+    while(TRUE)
     {
         overhead_dl += COMP+COMP;
 
         SCB_packed_server_list = SCB_list_pack(&SCB_server_list);
 #ifdef DEBUG
-        fprintf(stderr,"packed server \n");
+        fprintf(debug_f,"packed server \n");
         SCB_list_print(&SCB_packed_server_list);
-        fprintf(stderr,"\n");
+        fprintf(debug_f,"\n");
 #endif
         RUN_proper_server_remove(&SCB_reduction_root,&SCB_packed_server_list);
 #ifdef DEBUG
-        fprintf(stderr,"proper system\n");
+        fprintf(debug_f,"proper system\n");
         SCB_list_print(&SCB_reduction_root);
-        fprintf(stderr,"\n");
+        fprintf(debug_f,"\n");
 #endif
         if(SCB_packed_server_list == NULL){break;}
 
         SCB_dual_server_list = SCB_dual_list_build(&SCB_packed_server_list);
 #ifdef DEBUG
-        fprintf(stderr,"dual server\n");
+        fprintf(debug_f,"dual server\n");
         SCB_list_print(&SCB_dual_server_list);
-        fprintf(stderr,"\n");
+        fprintf(debug_f,"\n");
 #endif
         SCB_server_list = SCB_dual_server_list;
     }
@@ -684,57 +755,45 @@ TCB_CNTNR* SCB_reduction_tree_TCB_CNTNR_search(SCB* SCB_node,TCB* tcb)
 {
     TCB_CNTNR* tc = NULL;
 
+    overhead_dl += COMP+COMP;
     if(SCB_node==NULL || tcb==NULL){return NULL;}
     
+    overhead_dl += COMP;
     switch(SCB_node->is_pack)
     {
         case LEAF:
+            overhead_dl += COMP;
             tc = (TCB_CNTNR*)(SCB_node->leaf);
             if(tc == NULL)
             {
                 fprintf(stderr,"tc is NULL,in SCB_reduction_tree_TCB_CNTNR_search\n");
                 kill(getpid(),SIG_SHOULD_NOT_HAPPENED);
             }
+            overhead_dl += COMP;
             if(tc->tid == tcb->tid)
             {
 #ifdef DEBUG
-                fprintf(stderr,"found target %d\n",tc->tid);
+                fprintf(debug_f,"found target %d\n",tc->tid);
 #endif
                 return tc;
             }
             else if((tc=SCB_reduction_tree_TCB_CNTNR_search(SCB_node->next,tcb))!=NULL){return tc;}
             else{return NULL;}
         break;
+
+        case DUMMY:
+            return NULL;
+        break;
         
         default:
+            overhead_dl += COMP;
             if((tc=SCB_reduction_tree_TCB_CNTNR_search(SCB_node->next,tcb))!=NULL){return tc;}
+            overhead_dl += COMP;
             if((tc=SCB_reduction_tree_TCB_CNTNR_search((SCB*)(SCB_node->leaf),tcb))!=NULL){return tc;}
         break;
     }
 
     return NULL;
-}
-
-SCB* SCB_list_element_get(SCB* SCB_list)
-{
-    SCB* scb = NULL;
-    SCB* SCB_earliest = NULL;
-    
-    if(SCB_list == NULL){return NULL;}
-
-    for(scb = SCB_list;scb;scb=scb->next)
-    {
-        if(scb->et > 0)
-        {
-            if(SCB_earliest == NULL){SCB_earliest = scb;}
-            else
-            {
-                if(SCB_earliest->a_dl > scb->a_dl){SCB_earliest = scb;}
-            }
-        }
-    }
-
-    return SCB_earliest;
 }
 
 int SCB_reduction_tree_node_update(SCB* SCB_node)
@@ -743,60 +802,77 @@ int SCB_reduction_tree_node_update(SCB* SCB_node)
     SCB*                       scb = NULL;
     unsigned long long earliest_dl = TICKS;
 
+    overhead_dl += COMP;
     if(SCB_node == NULL){return 0;}
 
+    overhead_dl += COMP;
     switch(SCB_node->is_pack)
     {
         case PACK:
+            overhead_dl += COMP;
             scb = (SCB*)(SCB_node->leaf);
             if(scb == NULL){fprintf(stderr,"SCB_node->leaf is NULL,in SCB_reduction_tree_node_update");kill(getpid(),SIG_SHOULD_NOT_HAPPENED);}
 
             for(;scb;scb=scb->next)
             {   
-                if(SCB_reduction_tree_node_update(scb)){updated = 1;}
-
+                overhead_dl += COMP+IADD;
+                overhead_dl += COMP;
+                updated |= SCB_reduction_tree_node_update(scb);
                 if(scb->a_dl > tick)
                 {
                     if(scb->a_dl < earliest_dl){earliest_dl = scb->a_dl;}
                 }   
             }
 
+            overhead_dl += COMP;
             if(updated)
             {
-                SCB_node->a_dl = earliest_dl;
-                SCB_node->r_dl = earliest_dl - tick;
-                SCB_node->et   = llround(round(SCB_node->r_dl * SCB_node->ultilization));
+                overhead_dl += FADD+FMUL;
+            	SCB_node->a_dl = earliest_dl;
+            	SCB_node->r_dl = earliest_dl - tick;
+                SCB_node->et   = my_round(SCB_node->ultilization * SCB_node->r_dl + SCB_node->et);
             }
             return updated;
         break;
         
         case DUAL:
+            overhead_dl += COMP;
             if(!SCB_reduction_tree_node_update((SCB*)(SCB_node->leaf))){return 0;}
             
+            overhead_dl += COMP;
             scb = (SCB*)(SCB_node->leaf);
             if(scb == NULL){fprintf(stderr,"SCB_node->leaf is NULL,in SCB_reduction_tree_node_update");kill(getpid(),SIG_SHOULD_NOT_HAPPENED);}
             
+            overhead_dl += FMUL+FADD;
             SCB_node->a_dl = scb->a_dl;
             SCB_node->r_dl = scb->r_dl;
-            SCB_node->et   = SCB_node->r_dl - scb->et;//SCB_node->r_dl * SCB_node->ultilization;
+            SCB_node->et   = my_round(SCB_node->r_dl * SCB_node->ultilization + SCB_node->et) ;
             return 1;
         break;
 
         case LEAF:
+            overhead_dl += COMP;
             if(SCB_node->req_tim == tick){return 1;}
+        break;
+
+        case DUMMY:
+            return 0;
         break;
     }
 
     return 0;
 }
+
 void SCB_reduction_tree_update(SCB* SCB_root)
 {
     SCB* scb = NULL;
 
+    overhead_dl += COMP;
     if(SCB_root == NULL){return;}
 
     for(scb=SCB_root;scb;scb=scb->next)
     {
+        overhead_dl += COMP+MEM;
         SCB_reduction_tree_node_update(scb);
     }
 }
@@ -815,11 +891,12 @@ void SCB_reduction_tree_destory(SCB** SCB_node)
     switch(scb->is_pack)
     {
         case LEAF:
+            overhead_dl += COMP+MEM;
             tc = (TCB_CNTNR*)scb->leaf;
-            if(tc!=NULL)
-            {
-                free(tc);
-            }
+            if(tc!=NULL){free(tc);}
+        break;
+
+        case DUMMY:
         break;
 
         default:
@@ -828,6 +905,7 @@ void SCB_reduction_tree_destory(SCB** SCB_node)
             *SCB_node = NULL;
         break;
     }
+    overhead_dl += MEM;
     free(scb);
 }
 
@@ -841,6 +919,7 @@ void SCB_reduction_tree_unpack_by_node(SCB** SCB_node,int selected)
     overhead_dl += COMP+COMP;
     if(SCB_node==NULL || *SCB_node==NULL){return;}
 
+    overhead_dl += COMP+COMP;
     if(selected && (*SCB_node)->et>0){server_list_insert(&selected_server_list,*SCB_node);}
 
     scb = *SCB_node;
@@ -849,17 +928,24 @@ void SCB_reduction_tree_unpack_by_node(SCB** SCB_node,int selected)
     switch(scb->is_pack)
     {
         case LEAF:
+            overhead_dl += COMP;
             if(!selected){return;}
             
             tc = (TCB_CNTNR*)scb->leaf;
             execution_queue_insert(tc);
         break;
 
+        case DUMMY:
+            return;
+        break;
+
         case PACK:
+            overhead_dl += COMP;
             if(!selected)
             {
                 for(SCB_tmp = (SCB*)(scb->leaf);SCB_tmp;SCB_tmp=SCB_tmp->next)
                 {
+                    overhead_dl += COMP+MEM;
                     SCB_reduction_tree_unpack_by_node(&(SCB_tmp),0);
                 }
                 return;
@@ -869,13 +955,17 @@ void SCB_reduction_tree_unpack_by_node(SCB** SCB_node,int selected)
             earliest_ddl_SCB = NULL;
             for(SCB_tmp = (SCB*)(scb->leaf);SCB_tmp;SCB_tmp=SCB_tmp->next)
             {
+                overhead_dl += COMP+MEM;
                 // Find the servser with rest execution time bigger than 0
-                if(SCB_tmp->et != 0)
+                overhead_dl += COMP;
+                if(SCB_tmp->et > (double)0)
                 {
+                    overhead_dl += COMP;
                     if(earliest_ddl_SCB == NULL){earliest_ddl_SCB = SCB_tmp;}
                     else
                     {
                         // Find a server with earliest deadline, and record it.
+                        overhead_dl += COMP;
                         if(SCB_tmp->a_dl < earliest_ddl_SCB->a_dl)
                         {
                             SCB_reduction_tree_unpack_by_node(&(earliest_ddl_SCB),0);
@@ -914,14 +1004,8 @@ void SCB_reduction_tree_unpack(SCB** SCB_node)
 
     for(scb=*SCB_node;scb;scb=scb->next)
     {
-        if(scb->et > 0)
-        {
-            SCB_reduction_tree_unpack_by_node(&scb,1);
-        }
-        else
-        {
-            SCB_reduction_tree_unpack_by_node(&scb,0);
-        }
+        overhead_dl += COMP+MEM;
+        SCB_reduction_tree_unpack_by_node(&scb,1);
     }
 }
 
@@ -936,10 +1020,13 @@ void RUN_scheduling_initialize()
     selected_server_list = NULL;
 
     for(i=0;i<MAX_TASKS;i++){assignment_history[i]=-1;}
+
+    debug_f = fopen("RUN_debug.txt","w+");
 }
 
 void RUN_scheduling_update()
 {
+    overhead_dl += COMP;
     if(server_list_update(selected_server_list)){has_server_finished = 1;}
 }
 
@@ -948,24 +1035,28 @@ int RUN_insert_OK(TCB* t1,TCB* t2)
     SCB*      scb = NULL;
     TCB_CNTNR* tc = NULL;
 
+    overhead_dl += COMP;
     if(t1 == NULL){return 0;}
 
     // This is a new task, so no need to search from RUN_TCB_list
+    overhead_dl += COMP;
     if(has_new_task){return 1;}
 
 #ifdef DEBUG
-    fprintf(stderr,"At tick:: %llu,%d has came.\n",tick,t1->tid);
+    fprintf(debug_f,"At tick:: %llu,%d has came.\n",tick,t1->tid);
 #endif
 
+    overhead_dl += COMP;
     tc = SCB_reduction_tree_TCB_CNTNR_search(SCB_root,t1);
     if(tc == NULL){fprintf(stderr,"tc is NULL,in RUN_insert_OK\n");kill(getpid(),SIG_SHOULD_NOT_HAPPENED);}
 
     tc->tcb = t1;
 
+    overhead_dl += COMP;
     scb = tc->root;
     if(scb == NULL){fprintf(stderr,"scb is NULL, in RUN_insert_OK\n");kill(getpid(),SIG_SHOULD_NOT_HAPPENED);}
 
-    scb->et      = t1->et;
+    scb->et      = (double)t1->et;
     scb->a_dl    = t1->a_dl;
     scb->req_tim = tick;
 
@@ -978,6 +1069,7 @@ void RUN_reorganize_function(TCB** rq)
     overhead_dl += COMP+COMP;
     if(!has_new_task && !has_new_instance && !has_server_finished){return;}
 
+    overhead_dl += COMP+COMP;
     if(rq==NULL || *rq==NULL)
     {
         server_list_destory(&selected_server_list);
@@ -986,11 +1078,12 @@ void RUN_reorganize_function(TCB** rq)
     }
 
 #ifdef DEBUG
-    fprintf(stderr,"tick : %llu nt:%d ni:%d sf:%d\n",tick,has_new_task,has_new_instance,has_server_finished);
-    fprintf(stderr,"Original TCB list:\n");
+    fprintf(debug_f,"tick : %llu nt:%d ni:%d sf:%d\n",tick,has_new_task,has_new_instance,has_server_finished);
+    fprintf(debug_f,"Original TCB list:\n");
     TCB_list_print(p_ready_queue);
 #endif
 
+    overhead_dl += COMP;
     if(has_new_task)
     {
         execution_queue_destory(&execution_queue);
@@ -1010,9 +1103,10 @@ void RUN_reorganize_function(TCB** rq)
     }
     else if(has_new_instance)
     {
+        overhead_dl += COMP;
 #ifdef DEBUG
-        fprintf(stderr,"Has new instance,will update reduction tree\n"); 
-        fprintf(stderr,"old Servers:\n");
+        fprintf(debug_f,"Has new instance,will update reduction tree\n"); 
+        fprintf(debug_f,"old Servers:\n");
         SVR_CNTNR_list_print(selected_server_list);
 #endif
         execution_queue_destory(&execution_queue);
@@ -1027,16 +1121,17 @@ void RUN_reorganize_function(TCB** rq)
         SCB_reduction_tree_unpack(&SCB_root);
 
 #ifdef DEBUG
-        fprintf(stderr,"New servers:\n");
+        fprintf(debug_f,"New servers:\n");
         SVR_CNTNR_list_print(selected_server_list);
         execution_queue_print(execution_queue);
 #endif
     }
     else if(has_server_finished)
     {
+        overhead_dl += COMP;
 #ifdef DEBUG
-        fprintf(stderr,"Has server finished,will unpack reduction tree again\n"); 
-        fprintf(stderr,"old Servers:\n");
+        fprintf(debug_f,"Has server finished,will unpack reduction tree again\n"); 
+        fprintf(debug_f,"old Servers:\n");
         SVR_CNTNR_list_print(selected_server_list);
 #endif
         execution_queue_destory(&execution_queue);
@@ -1048,7 +1143,7 @@ void RUN_reorganize_function(TCB** rq)
         SCB_reduction_tree_unpack(&SCB_root);
 
 #ifdef DEBUG
-        fprintf(stderr,"New servers:\n");
+        fprintf(debug_f,"New servers:\n");
         SVR_CNTNR_list_print(selected_server_list);
         execution_queue_print(execution_queue);
 #endif
@@ -1066,18 +1161,20 @@ int processor_assignment(TCB* tcb)
     int i;
     int processor_id = -1;
     
+    overhead_dl += COMP;
     if(tcb == NULL){return -1;}
     
+    overhead_dl += COMP;
     if((processor_id=check_assignment_history(tcb)) == -1)
     {
         for(i=0;i<PROCESSOR_NUM;i++)
         {
+            overhead_dl += COMP+IADD;
+            overhead_dl += COMP;
             if(_kernel_runtsk[i]==NULL){break;}
         }
-        if(i<PROCESSOR_NUM)
-        {
-            processor_id = i;
-        }
+        overhead_dl += COMP;
+        if(i<PROCESSOR_NUM){processor_id = i;}
     }
 
     return processor_id;
@@ -1089,37 +1186,47 @@ void RUN_schedule()
     int assigned[PROCESSOR_NUM] = {0};
     TCB_CNTNR* tc = NULL;
     
-    if(!has_new_instance && !has_new_task && !has_task_finished && !has_server_finished){return;}
+    overhead_dl += COMP+COMP+COMP;
+    if(!has_new_instance && !has_new_task && !has_server_finished){return;}
 
-    if(has_new_instance || has_new_task || has_task_finished || has_server_finished)
+    overhead_dl += COMP+COMP+COMP;
+    if(has_new_instance || has_new_task || has_server_finished)
     {
         has_new_instance = has_new_task = has_task_finished = has_server_finished = 0;
 
         for(i=0;i<PROCESSOR_NUM;i++)
         {
+            overhead_dl += COMP+IADD;
             _kernel_runtsk[i] = NULL;
         }
     
         while((tc=execution_queue_retrieve(&execution_queue)) != NULL)
         {
+            overhead_dl += COMP;
+            overhead_dl += COMP+COMP;
             if(tc == NULL){fprintf(stderr,"tc is NULL,in RUN schedule\n");break;}
             if(tc->tcb == NULL){fprintf(stderr,"tc->tcb is NULL,in RUN schedule\n");break;}
             
             processor_id = processor_assignment(tc->tcb);
+            overhead_dl += COMP+COMP;
             if(processor_id==-1 || assigned[processor_id])
             {
                 processor_id = -1;
                 for(i=0;i<PROCESSOR_NUM;i++)
                 {
+                    overhead_dl += COMP+IADD;
+                    overhead_dl += COMP;
                     if(!assigned[i]){break;}
                 }
+                overhead_dl += COMP+COMP;
                 if(i<PROCESSOR_NUM && i>=0){processor_id = i;}
             }
             
 #ifdef DEBUG
-            fprintf(stderr,"tc %p,tcb %p,tid %d %d\n",tc,tc->tcb,tc->tcb->tid,processor_id);
+            fprintf(debug_f,"tc %p,tcb %p,tid %d %d\n",tc,tc->tcb,tc->tcb->tid,processor_id);
 #endif
             // Since we didn't found any available Processor.
+            overhead_dl += COMP;
             if(processor_id == -1){break;}
 
             _kernel_runtsk[processor_id] = tc->tcb;
@@ -1133,7 +1240,7 @@ void RUN_schedule()
     for(i=0;i<PROCESSOR_NUM;i++)
     {
         if(!_kernel_runtsk[i]){continue;}
-        fprintf(stderr,"pid:%d\t%p\ttid:%d\n",i,_kernel_runtsk[i],_kernel_runtsk[i]->tid);
+        fprintf(debug_f,"pid:%d\t%p\ttid:%d\n",i,_kernel_runtsk[i],_kernel_runtsk[i]->tid);
     }
     //getchar();
 #endif
@@ -1148,6 +1255,7 @@ void RUN_scheduling_exit()
 
     execution_queue_destory(&execution_queue);
 
+    fclose(debug_f);
 #ifdef DEBUG
     printf("RUN end normally\n");
 #endif

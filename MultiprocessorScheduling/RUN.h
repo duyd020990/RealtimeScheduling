@@ -8,6 +8,7 @@
 #define DUAL  0
 #define PACK  1
 #define LEAF  2
+#define DUMMY 3
 
 // This is a block,I use to represent a server, what ever it's a dual server(DUAL) or a server pack(PACK) or just a server(LEAF)
 typedef struct scb
@@ -17,7 +18,7 @@ typedef struct scb
     unsigned long long a_dl;         //The deadline of this pack or dual server
     unsigned long long r_dl;
     unsigned long long req_tim;         //Realeative deadline,will be used when calculate the et
-    unsigned long long et;
+    double             et;
     struct scb*        root;
     void*              leaf;         //For those packed server,this point to a list of sub-server.For a dual server,this point to the another phase of this dual server. 
     struct scb*        next;         //Point to the next SCB block.
