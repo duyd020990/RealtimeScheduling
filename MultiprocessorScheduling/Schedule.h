@@ -1,6 +1,9 @@
 #ifndef SCHEDULE_H
 #define SCHEDULE_H
 
+#define TRUE 1
+#define FALSE 0
+
 /* Overhead Definition */
 #define FADD     4
 #define FMUL     5
