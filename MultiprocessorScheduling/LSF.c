@@ -27,6 +27,7 @@ extern unsigned long long overhead_alpha;
 extern unsigned long long overhead_alpha_max;
 extern unsigned long long overhead_alpha_total;
 
+int assignment_history[MAX_TASKS];
 
 SCHEDULING_ALGORITHM LSF_sa={
     .scheduling_initialize = LSF_scheduling_initialize,
@@ -34,11 +35,26 @@ SCHEDULING_ALGORITHM LSF_sa={
     .scheduling            = LSF_Scheduling,
     .insert_OK             = LSF_insert_OK,
     .reorganize_function   = LSF_reorganize_function,
+    .job_delete            = NULL
 };
 
 void LSF_scheduling_initialize()
 {
+    int i;
+
+    for(i=0;i<MAX_TASKS;i++)
+    {
+        assignment_history[i] = -1;
+    }
+
     return;
+}
+
+int processor_assign(int tid)
+{
+    if(tid<0 || tid>=MAX_TASKS){return -1;}
+
+    return assignment_history[tid];
 }
 
 void LSF_swap(TCB *t1,TCB *t2)
@@ -115,48 +131,57 @@ void LSF_reorganize_function(TCB** rq)
 void LSF_Scheduling()
 {
     int i;
-    TCB* p = NULL;
+    int processor_id            =  0;
+    int assigned[PROCESSOR_NUM] = {0};
+
+    TCB* p  = NULL;
     TCB* ap = NULL;
 
-    p = p_ready_queue;
+    p  = p_ready_queue;
     ap = ap_ready_queue;
+
+    for(p=p_ready_queue;p;p=p->next)
+    {
+        processor_id = processor_assign(p->tid);
+        if(processor_id==-1 || assigned[processor_id])
+        {
+            processor_id = -1;
+            for(i=0;i<PROCESSOR_NUM;i++)
+            {
+                if(!assigned[i]){break;}
+            }
+            if(i<PROCESSOR_NUM){processor_id = i;}
+        }
+        if(processor_id>=0)
+        {
+            _kernel_runtsk[processor_id] = p;
+            assigned[p->tid] = 1;
+            assignment_history[p->tid] = processor_id;
+        }
+        else{break;}
+    }
+
+    for(ap=ap_ready_queue;ap;ap=ap->next)
+    {
+        processor_id = -1;
+        for(i=0;i<PROCESSOR_NUM;i++)
+        {
+            if(!assigned[i]){break;}
+        }
+        if(i<PROCESSOR_NUM){processor_id = i;}
+
+        if(processor_id>=0)
+        {
+            _kernel_runtsk[processor_id] = p;
+            assigned[processor_id] = 1;
+        }
+        else{break;}
+    }
 
     for(i=0;i<PROCESSOR_NUM;i++)
     {
-        overhead_dl += IADD+COMP;
-        overhead_dl += COMP;
-        if(p == NULL)
-        {
-            overhead_dl += COMP;
-            _kernel_runtsk[i] = ap;
-            if(ap!=NULL){ap = ap->next;}
-        }
-        else if(ap == NULL)
-        {
-            overhead_dl += COMP+COMP;
-            _kernel_runtsk[i] = p;
-            if(p!=NULL){p = p->next;}
-        }
-        else
-        {
-            overhead_dl += COMP;
-            if(p->a_dl <= ap->a_dl)
-            {
-                overhead_dl += COMP;
-                _kernel_runtsk[i] = p;
-                if(p!=NULL){p = p->next;}
-            }
-            else
-            {
-                overhead_dl += COMP;
-                _kernel_runtsk[i] = ap;
-                if(ap!=NULL){ap = ap->next;}
-            }
-        }
-
         if(_kernel_runtsk[i] != _kernel_runtsk_pre[i])
         {
-            migration++;
             _kernel_runtsk_pre[i] = _kernel_runtsk[i]; 
         }
     }

@@ -27,6 +27,7 @@ SCHEDULING_ALGORITHM RM_sa={
     .scheduling            = RM_Scheduling,
     .insert_OK             = RM_insert_OK,
     .reorganize_function   = RM_reorganize_function,
+    .job_delete            = NULL
 };
 
 void RM_scheduling_initialize()

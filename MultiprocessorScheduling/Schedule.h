@@ -60,30 +60,31 @@ typedef struct
     void* insert_OK;
     void* reorganize_function;
     void* scheduling_update;
+    void* job_delete;
 }SCHEDULING_ALGORITHM;
 
 /* Prototype */
-void   insert_queue ( TCB **rq, TCB *entry, void* function);
+void insert_queue ( TCB **rq, TCB *entry, void* function);
 
-void   insert_queue_RM ( TCB **rq, TCB *entry );
+void insert_queue_RM ( TCB **rq, TCB *entry );
 
-void   insert_queue_fifo ( TCB **rq, TCB *entry );
+void insert_queue_fifo ( TCB **rq, TCB *entry );
 
-void   delete_queue(TCB** rq,TCB* tcb);
+void delete_queue(TCB** rq,TCB* tcb,void* job_delete);
 
-void   from_fifo_to_ap ( void );
+void from_fifo_to_ap ( void );
 
-void   run_simulation(char* s,SCHEDULING_ALGORITHM sa);
+void run_simulation(char* s,SCHEDULING_ALGORITHM sa);
 
-void   Initialize ( void );
+void Initialize ( void );
 
-void   Tick_inc ( );
+void Tick_inc ( );
 
-TCB   *entry_set ( int );
+TCB* entry_set ( int );
 
-void   Job_exit ( const char *, int ,int );
+void Job_exit ( const char *, int ,int ,void* job_exit);
 
-void   Overhead_Record ( void );
+void Overhead_Record ( void );
 
 void deadline_miss_log(const char* s,TCB* );
 

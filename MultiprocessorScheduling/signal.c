@@ -5,7 +5,7 @@
 #include <signal.h>
 #include <string.h>
 
-
+extern FILE* debug_f;
 void signal_init()
 {
     struct sigaction sa_segment_fault;
@@ -50,5 +50,6 @@ void should_not_happened_handler(int signal,siginfo_t* si,void* arg)
                                       "Something should not happened things happened", 
                                       "         Go check your program               ",
                                       "=============================================");
+    fclose(debug_f);
     pause();
 }

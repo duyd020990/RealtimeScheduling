@@ -12,7 +12,7 @@
 //#include "RM.h"
 //#include "LSF.h"
 //#include "EDF.h"
-//#include "LLREF.h"
+#include "LLREF.h"
 #include "RUN.h"
 
 //#define AP_ALSO
@@ -205,7 +205,7 @@ int main ( int argc, char *argv[] )
     if ( p_util > UTIL_UPPERBOUND ) 
     {
         fprintf(stderr,"Cannot execute tasks over %2f%% utilization\nCurrent ultilization: %2f%%\n",UTIL_UPPERBOUND*100,p_util);
-        printf ( "Cannot execute tasks over %2f%% utilization\nCurrent ultilization: %2f%%\n",UTIL_UPPERBOUND*100,p_util);
+        printf ( "Cannot execute tasks over %2f%% utilization\nCurrent ultilization: %2f%%\n",UTIL_UPPERBOUND,p_util);
         return 0;
     }
 
@@ -343,12 +343,10 @@ void run_simulation(char* s,SCHEDULING_ALGORITHM sa)
 
     for ( tick = 0; tick < TICKS; ) 
     {
-
         for ( i = 0; i < MAX_TASKS; i++ ) 
         {
             if ( req_tim[i][inst_no[i]] == tick ) 
             {
-
                 has_new_instance = 1;
 
                 entry = entry_set ( i );
@@ -363,6 +361,7 @@ void run_simulation(char* s,SCHEDULING_ALGORITHM sa)
                     insert_queue_fifo ( &fifo_ready_queue, entry );
                 }
                 inst_no[i]++;
+
                 if(multi_TCB_check(s,&p_ready_queue) > 0)
                 {
                     fprintf(stderr,"multi TCB detected,in run_simulation\n");
@@ -377,20 +376,18 @@ void run_simulation(char* s,SCHEDULING_ALGORITHM sa)
         {
             from_fifo_to_ap ();
         }  
-        
         /* Scheduling */
         scheduling();
         /* Tick increment/et decrement and Setting last_empty & used_dl*/
         Tick_inc (sa.scheduling_update);
-        //fprintf(stderr, "Tick: %d\n", tick);
-        //getchar();
+
         for(processor_id=0;processor_id<PROCESSOR_NUM;processor_id++)
         {
             if ( _kernel_runtsk[processor_id] != NULL ) 
             {
                 if ( _kernel_runtsk[processor_id] -> et == 0 ) 
                 {   
-                    Job_exit ( s, 1 ,processor_id);
+                    Job_exit ( s, 1 ,processor_id,sa.job_delete);
                 }
             }
         }
@@ -403,12 +400,28 @@ void insert_queue( TCB **rq,TCB *entry,void* function)
     TCB  *p;
     int (*insert_OK)(TCB* t1,TCB* t2) = NULL;
 
-    if(function==NULL)
-    {
-        return;
-    }
+    if(function==NULL){return;}
+    
     insert_OK = (int (*)(TCB*,TCB*)) function;
 
+    //Unchain p from TCB_list
+    for(p=*rq;p;p=p->next)
+    {
+        if(p->tid == entry->tid)
+        {
+            memcpy(p,entry,DIFF(TCB,something_else));
+            free(entry);
+
+            if(p->prev != NULL){p->prev->next = p->next;}
+            else{*rq = p->next;}
+            if(p->next != NULL){p->next->prev = p->prev;}
+            entry = p;
+            entry->prev = entry->next = NULL;
+            break;
+        }
+    }
+
+    // link it back again
     for ( p = *rq; p != NULL; p = p -> next )
     {
         if (insert_OK(entry,p)) 
@@ -480,33 +493,18 @@ void from_fifo_to_ap ( void )
     return;
 }
 
-void delete_queue ( TCB **rq,TCB* tcb)
+void delete_queue ( TCB **rq,TCB* tcb,void* job_delete)
 {
-    TCB* h_p;
+    void (*job_delete_function)(TCB*) = NULL;
 
     if(rq==NULL || *rq==NULL || tcb==NULL){return;}
 
-    h_p = tcb->prev;
-    if(h_p == NULL)
+    // Tell scheduling algorithm this job has finished.
+    if(job_delete != NULL)
     {
-        *rq = (*rq) -> next; 
-        if(*rq!=NULL)
-        {
-            (*rq)->prev = NULL;
-        }
+        job_delete_function = job_delete;
+        job_delete_function(tcb);
     }
-    else if(tcb->next == NULL)
-    {
-        tcb->prev->next = NULL;
-    }
-    else
-    {
-        h_p->next = tcb->next;
-        tcb->next->prev = h_p;
-    }
-
-    if(tcb->something_else!=NULL){free(tcb->something_else);}
-    free ( tcb );
 
     return;
 }
@@ -613,39 +611,33 @@ void Overhead_Record ( void )
 }
 
 
-void Job_exit ( const char *s, int rr, int processor_id) /* rr: resource reclaiming */
+void Job_exit ( const char *s, int rr, int processor_id,void* job_delete) /* rr: resource reclaiming */
 {
-    if(_kernel_runtsk[processor_id] == NULL)
-    {
-        return;
-    }
+
+    if(_kernel_runtsk[processor_id] == NULL){return;}
 
     if ( _kernel_runtsk[processor_id] -> a_dl < tick ) 
     {
         deadline_miss_log(s,_kernel_runtsk[processor_id]);
-        /*fprintf( stderr, "\n# MISS: %s: tick=%lld: DL=%lld: TID=%d: INST_NO=%d, WCET=%d, ET=%d, req_tim=%lld\n",
-           s, tick, _kernel_runtsk[processor_id]->a_dl, _kernel_runtsk[processor_id]->tid, _kernel_runtsk[processor_id]->inst_no,
-           wcet[_kernel_runtsk[processor_id]->tid], _kernel_runtsk[processor_id]->initial_et, _kernel_runtsk[processor_id]->req_tim );
-        printf( "\n# MISS: %s: tick=%lld: DL=%lld: TID=%d: INST_NO=%d\n",
-           s, tick, _kernel_runtsk[processor_id]->a_dl,  _kernel_runtsk[processor_id]->tid, _kernel_runtsk[processor_id]->inst_no);*/
     }
 
     exec_times[ _kernel_runtsk[processor_id] -> tid]++;
 
-    if ( periodic[_kernel_runtsk[processor_id]->tid] == 0 ) 
+    if (periodic[_kernel_runtsk[processor_id]->tid] == 0) 
     {
         aperiodic_exec_times++;
-        aperiodic_total_et += tick - _kernel_runtsk[processor_id] -> req_tim;
-        aperiodic_response_time = (double)aperiodic_total_et / (double)aperiodic_exec_times;
+        aperiodic_total_et += tick-(_kernel_runtsk[processor_id]->req_tim);
+        aperiodic_response_time = ((double)aperiodic_total_et)/((double)aperiodic_exec_times);
     }
 
-    if ( periodic[_kernel_runtsk[processor_id]->tid] == 1 )
+    // Delete from queue
+    if (periodic[_kernel_runtsk[processor_id]->tid] == 1)
     {
-        delete_queue ( &p_ready_queue,_kernel_runtsk[processor_id]);
+        delete_queue ( &p_ready_queue,_kernel_runtsk[processor_id],job_delete);
     }
     else
     {
-        delete_queue ( &ap_ready_queue,_kernel_runtsk[processor_id]);
+        delete_queue ( &ap_ready_queue,_kernel_runtsk[processor_id],job_delete);
     }
     _kernel_runtsk[processor_id] = NULL;
     has_task_finished = 1;

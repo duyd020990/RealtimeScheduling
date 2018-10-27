@@ -27,9 +27,7 @@ typedef struct scb
 // This is a container for a TCb block
 typedef struct tcb_cntnr
 {
-    int               tid;
 	TCB*              tcb;
-    SCB*              root;
 	struct tcb_cntnr* next;
 }TCB_CNTNR;
 

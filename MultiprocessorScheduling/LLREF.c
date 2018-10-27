@@ -47,7 +47,8 @@ SCHEDULING_ALGORITHM LLREF_sa={
     .scheduling_exit       = LLREF_scheduling_exit,
     .scheduling            = LLREF_scheduling,
     .insert_OK             = LLREF_insert_OK,
-    .reorganize_function   = LLREF_reorganize_function
+    .reorganize_function   = LLREF_reorganize_function,
+    .job_delete            = NULL
 };
 
 unsigned long long next_release_time()
@@ -99,6 +100,31 @@ void LLREF_swap(TCB* t1,TCB* t2)
     memcpy(&TCB_tmp,t1,DIFF(TCB,next));
     memcpy(t1      ,t2,DIFF(TCB,next));
     memcpy(t2,&TCB_tmp,DIFF(TCB,next));
+}
+
+void lrect_sort(TCB** rq)
+{
+    TCB* p = NULL;
+    TCB* q = NULL;
+    LLREF_LRECT* ll1 = NULL;
+    LLREF_LRECT* ll2 = NULL;
+
+    if(rq==NULL || *rq==NULL){return;}
+
+    p = *rq;
+    for(;p!=NULL;p=p->next)
+    {
+        overhead_dl += IADD+COMP;
+        for(q=p->next;q!=NULL;q=q->next)
+        {
+            overhead_dl += IADD+COMP;
+            ll1 = (LLREF_LRECT*)(p->something_else);
+            ll2 = (LLREF_LRECT*)(q->something_else);
+
+            overhead_dl += IADD+COMP;
+            if(ll1->local_remaining_execution_time < ll2->local_remaining_execution_time){LLREF_swap(p,q);}
+        }
+    }
 }
 
 LLREF_LRECT* lrect_node_init(TCB* tcb,unsigned long long rest_time_interval)
@@ -280,10 +306,7 @@ void LLREF_scheduling_initialize()
 void LLREF_reorganize_function(TCB** rq)
 {
     TCB* p = NULL;
-    TCB* q = NULL;
     LLREF_LRECT* ll  = NULL;
-    LLREF_LRECT* ll1 = NULL;
-    LLREF_LRECT* ll2 = NULL;
 
     overhead_dl += COMP+COMP;
     if(rq == NULL || *rq == NULL){return;}
@@ -345,20 +368,7 @@ void LLREF_reorganize_function(TCB** rq)
     // later we will call the scheduler
     LLREF_involke = 1;
 
-    p = *rq;
-    for(;p!=NULL;p=p->next)
-    {
-        overhead_dl += IADD+COMP;
-        for(q=p->next;q!=NULL;q=q->next)
-        {
-            overhead_dl += IADD+COMP;
-            ll1 = (LLREF_LRECT*)(p->something_else);
-            ll2 = (LLREF_LRECT*)(q->something_else);
-
-            overhead_dl += IADD+COMP;
-            if(ll1->local_remaining_execution_time < ll2->local_remaining_execution_time){LLREF_swap(p,q);}
-        }
-    }
+    lrect_sort(rq);
 }
 
 int LLREF_insert_OK(TCB* t1,TCB* t2)
@@ -373,7 +383,6 @@ void LLREF_scheduling()
     int  i;
     int  processor_id            = -1;
     int  assigned[PROCESSOR_NUM] = {0};
-    int  total_assigned          = 0;
     TCB* p                       = NULL;
     TCB* ap                      = NULL;
     //fprintf(f_debug,"ss\t");
@@ -398,9 +407,12 @@ void LLREF_scheduling()
 
     // Actually, at this moment, the p_ready_queue should be already soreded by local_remaining_execution_time;
 
-    for(p=p_ready_queue;p&&total_assigned<PROCESSOR_NUM;p=p->next,total_assigned++)
+    for(p=p_ready_queue;p;p=p->next)
     {
         overhead_dl += IADD+COMP;
+        overhead_dl += COMP;
+        if(p->et <= 0){continue;}
+
         overhead_dl += COMP+COMP+MEM;
         processor_id = LLREF_assign_history_check(p);
         if(processor_id==-1 || assigned[processor_id])
@@ -414,10 +426,8 @@ void LLREF_scheduling()
                 if(!assigned[i]){break;}
             }
             overhead_dl += COMP;
-            if(i<PROCESSOR_NUM)
-            {
-                processor_id = i;
-            }
+            if((0<=i) && (i<PROCESSOR_NUM)){processor_id = i;}
+            else{break;}
         }
         assign_history[p->tid] = processor_id;
         _kernel_runtsk[processor_id] = p;

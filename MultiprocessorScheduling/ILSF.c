@@ -25,6 +25,7 @@ SCHEDULING_ALGORITHM ILSF_sa={
     .scheduling            = ILSF_scheduling,
     .insert_OK             = ILSF_insert_OK,
     .reorganize_function   = ILSF_reorganize_function,
+    .job_delete            = NULL
 };
 
 void ILSF_scheduling_initialize()

@@ -66,7 +66,8 @@ SCHEDULING_ALGORITHM RUN_sa = {
     .scheduling            = RUN_schedule,
     .insert_OK             = RUN_insert_OK,
     .reorganize_function   = RUN_reorganize_function,
-    .scheduling_update     = RUN_scheduling_update
+    .scheduling_update     = RUN_scheduling_update,
+    .job_delete            = NULL
 };
 
 double my_round(double number)
@@ -105,7 +106,6 @@ void SCB_reduction_tree_print(SCB** SCB_node,int level,int index)
 {
     SCB*      scb = NULL;
     TCB*      tcb = NULL;
-    TCB_CNTNR* tc = NULL;
 
     if(SCB_node==NULL || *SCB_node==NULL){fprintf(debug_f,"SCB_node is NULL,in SCB_reduction_tree_print\n");return;}
     
@@ -116,14 +116,14 @@ void SCB_reduction_tree_print(SCB** SCB_node,int level,int index)
     {
         case LEAF:
             fprintf(debug_f,"LEAF %p\n",scb);
-            tc = (TCB_CNTNR*)(scb->leaf);
-            if(tc == NULL){fprintf(stderr,"tc is NULL, in SCB_reduction_tree_print\n");while(TRUE);}
-            tcb = tc->tcb;
-            if(tcb == NULL){fprintf(stderr,"This tc was exhausted, tid %d\n",tc->tid);}
+            //tc = (TCB_CNTNR*)(scb->leaf);
+            //if(tc == NULL){fprintf(stderr,"tc is NULL, in SCB_reduction_tree_print\n");while(TRUE);}
+            tcb = (TCB*)(scb->leaf);
+            if(tcb == NULL){fprintf(stderr,"This tc was exhausted, tid %d\n",tcb->tid);}
             else
             {
                 fprintf(debug_f,"%p\ttid:%d\ttet:%u\tset:%f\tdl:%llu\n",scb,
-                                                  tc->tid,
+                                                  tcb->tid,
                                                   tcb->et,
                                                   scb->et,
                                                   scb->a_dl);         // display job information
@@ -200,11 +200,9 @@ TCB_CNTNR* TCB_to_TCB_CNTNR(TCB* tcb)
 
     overhead_dl += ASSIGN+MEM;
     tcb_cntnr = (TCB_CNTNR*)malloc(sizeof(TCB_CNTNR));
-    if(tcb_cntnr == NULL){fprintf(stderr,"Error with malloc,in TCB_to_TCB_CNTNR\n");return NULL;}
+    if(tcb_cntnr == NULL){fprintf(stderr,"Error with malloc,in TCB_to_TCB_CNTNR\n");kill(getpid(),SIG_SHOULD_NOT_HAPPENED);}
 
-    tcb_cntnr->tid  = tcb->tid;
     tcb_cntnr->tcb  = tcb;
-    tcb_cntnr->root = NULL;
     tcb_cntnr->next = NULL;
 
     return tcb_cntnr;
@@ -213,19 +211,16 @@ TCB_CNTNR* TCB_to_TCB_CNTNR(TCB* tcb)
 SCB* TCB_to_SCB(TCB* tcb)
 {
     SCB* scb      = NULL;
-    TCB_CNTNR* tc = NULL;
 
     overhead_dl += COMP;
     if(tcb == NULL){return NULL;}
-
+/*
     tc = TCB_to_TCB_CNTNR(tcb);
     if(tc == NULL){fprintf(stderr,"tc is NULL,in TCB_to_SCB\n");kill(getpid(),SIG_SHOULD_NOT_HAPPENED);}
-
+*/
     overhead_dl += ASSIGN + MEM;
     scb = (SCB*)malloc(sizeof(SCB));
-    if(scb == NULL){fprintf(stderr,"Fail to allocate the memory, in RUN TCB_to_SCB\n");return  NULL;}
-
-    tc->root = scb;
+    if(scb == NULL){fprintf(stderr,"Fail to allocate the memory, in RUN TCB_to_SCB\n");kill(getpid(),SIG_SHOULD_NOT_HAPPENED);}
 
     overhead_dl += FDIV;
     scb->is_pack          = LEAF;
@@ -234,8 +229,10 @@ SCB* TCB_to_SCB(TCB* tcb)
     scb->r_dl             = period[tcb->tid];
     scb->req_tim          = tcb->req_tim;
     scb->et               = (double)tcb->et;
-    scb->leaf             = (void*)tc; 
+    scb->leaf             = (void*)tcb; 
     scb->next = scb->root = NULL;
+
+    tcb->something_else = scb;
 
     return scb;
 }
@@ -273,7 +270,7 @@ SCB* SCB_to_packed_SCB(SCB* scb)
 
     overhead_dl += ASSIGN+MEM;
     packed_scb = (SCB*)malloc(sizeof(SCB));
-    if(packed_scb == NULL){fprintf(stderr,"Error with malloc,in SCB_to_packed_SCB\n");return NULL;}
+    if(packed_scb == NULL){fprintf(stderr,"Error with malloc,in SCB_to_packed_SCB\n");kill(getpid(),SIG_SHOULD_NOT_HAPPENED);}
 
     packed_scb->is_pack                 = PACK;
     packed_scb->a_dl                    = scb->a_dl;
@@ -461,7 +458,7 @@ SCB* SCB_to_dual(SCB* scb)
 
     overhead_dl += ASSIGN+MEM;
     SCB_dual = (SCB*)malloc(sizeof(SCB));
-    if(SCB_dual == NULL){fprintf(stderr,"Error with malloc,in SCB_to_dual\n");return NULL;}
+    if(SCB_dual == NULL){fprintf(stderr,"Error with malloc,in SCB_to_dual\n");kill(getpid(),SIG_SHOULD_NOT_HAPPENED);}
 
     overhead_dl += FADD + FMUL;
     SCB_dual->is_pack      = DUAL;
@@ -518,7 +515,6 @@ void server_list_destory(SVR_CNTNR** server_list)
 int server_list_update(SVR_CNTNR* server_list)
 {
     int zero_cnt    = 0;
-    TCB_CNTNR* tc   = NULL;
     SVR_CNTNR* sc   = NULL;
     SCB*      scb   = NULL;
     TCB*      tcb   = NULL;
@@ -542,9 +538,7 @@ int server_list_update(SVR_CNTNR* server_list)
         if(scb->is_pack == LEAF)
         {
             overhead_dl += COMP+COMP;
-            tc = (TCB_CNTNR*)(scb->leaf);
-            if(tc == NULL){fprintf(stderr,"tc is NULL,in server_list_update\n");kill(getpid(),SIG_SHOULD_NOT_HAPPENED);}
-            tcb = tc->tcb;
+            tcb = (TCB*)(scb->leaf);
             if(tcb == NULL){fprintf(stderr,"tcb is NULL,in server_list_update\n");kill(getpid(),SIG_SHOULD_NOT_HAPPENED);}
             scb->et = tcb->et;
         }
@@ -750,7 +744,7 @@ SCB* SCB_reduction_tree_build(TCB** rq)
 
     return SCB_reduction_root;
 }
-
+/*
 TCB_CNTNR* SCB_reduction_tree_TCB_CNTNR_search(SCB* SCB_node,TCB* tcb)
 {
     TCB_CNTNR* tc = NULL;
@@ -795,6 +789,7 @@ TCB_CNTNR* SCB_reduction_tree_TCB_CNTNR_search(SCB* SCB_node,TCB* tcb)
 
     return NULL;
 }
+*/
 
 int SCB_reduction_tree_node_update(SCB* SCB_node)
 {
@@ -931,7 +926,7 @@ void SCB_reduction_tree_unpack_by_node(SCB** SCB_node,int selected)
             overhead_dl += COMP;
             if(!selected){return;}
             
-            tc = (TCB_CNTNR*)scb->leaf;
+            tc = TCB_to_TCB_CNTNR((TCB*)(scb->leaf));
             execution_queue_insert(tc);
         break;
 
@@ -1033,7 +1028,6 @@ void RUN_scheduling_update()
 int RUN_insert_OK(TCB* t1,TCB* t2)
 {
     SCB*      scb = NULL;
-    TCB_CNTNR* tc = NULL;
 
     overhead_dl += COMP;
     if(t1 == NULL){return 0;}
@@ -1047,13 +1041,7 @@ int RUN_insert_OK(TCB* t1,TCB* t2)
 #endif
 
     overhead_dl += COMP;
-    tc = SCB_reduction_tree_TCB_CNTNR_search(SCB_root,t1);
-    if(tc == NULL){fprintf(stderr,"tc is NULL,in RUN_insert_OK\n");kill(getpid(),SIG_SHOULD_NOT_HAPPENED);}
-
-    tc->tcb = t1;
-
-    overhead_dl += COMP;
-    scb = tc->root;
+    scb = (SCB*)(t1->something_else);
     if(scb == NULL){fprintf(stderr,"scb is NULL, in RUN_insert_OK\n");kill(getpid(),SIG_SHOULD_NOT_HAPPENED);}
 
     scb->et      = (double)t1->et;

@@ -28,6 +28,7 @@ SCHEDULING_ALGORITHM EDF_sa={
     .scheduling            = EDF_scheduling,
     .insert_OK             = EDF_insert_OK,
     .reorganize_function   = EDF_reorganize_function,
+    .job_delete            = NULL
 };
 
 void EDF_scheduling_initialize()
@@ -35,22 +36,22 @@ void EDF_scheduling_initialize()
     return;
 }
 
-int EDF_insert_OK(TCB* t1,TCB* t2)
+int EDF_insert_OK(TCB* tcb1,TCB* tcb2)
 {
     overhead_dl += COMP;
-    if(t1==NULL)
+    if(tcb1 == NULL)
     {
         return 0;
     }
 
     overhead_dl += COMP;
-    if(t2==NULL)
+    if(tcb2 == NULL)
     {
         return 1;
     }
     
     overhead_dl += COMP;
-    if((t1->a_dl) < (t2->a_dl))
+    if((tcb1->a_dl) < (tcb2->a_dl))
     {
         return 1;
     }
