@@ -15,7 +15,7 @@
 ./DataGenerator 4 
 
 I=65
-while  [ $I -ne 95 ]
+while  [ $I -ne 100 ]
 do
 	I=`expr $I + 5`
 	echo "" >> results.csv
@@ -57,15 +57,15 @@ do
 	cp -p ./periodic.cfg.${I}-9 ./periodic9.cfg &
 	cp -p ./periodic.cfg.${I}-10 ./periodic10.cfg
 	wait
-	./Schedule ./periodic1.cfg >> results1.csv
-	./Schedule ./periodic2.cfg >> results2.csv
-	./Schedule ./periodic3.cfg >> results3.csv
-	./Schedule ./periodic4.cfg >> results4.csv
-	./Schedule ./periodic5.cfg >> results5.csv
+	./Schedule ./periodic1.cfg >> results1.csv 
+	./Schedule ./periodic2.cfg >> results2.csv 
+	./Schedule ./periodic3.cfg >> results3.csv 
+	./Schedule ./periodic4.cfg >> results4.csv 
+	./Schedule ./periodic5.cfg >> results5.csv 
 	./Schedule ./periodic6.cfg >> results6.csv 
 	./Schedule ./periodic7.cfg >> results7.csv 
-	./Schedule ./periodic8.cfg >> results8.csv
-	./Schedule ./periodic9.cfg >> results9.csv
+	./Schedule ./periodic8.cfg >> results8.csv 
+	./Schedule ./periodic9.cfg >> results9.csv 
 	./Schedule ./periodic10.cfg >> results10.csv
 	wait
 	

@@ -14,6 +14,9 @@ run scheduling
 
 #include "Schedule.h"
 #include "signal.h"
+#include "log/log.h"
+#include "tool/tool.h" 
+
 #include "EDF.h"
 
 #include <stdio.h>
@@ -22,9 +25,6 @@ run scheduling
 #include <math.h>
 
 #include <unistd.h>
-
-#define EPSILON 0.000000000000001
-#define IS_EQUAL(a,b) fabs(a-b)<EPSILON
 
 #define DEBUG
 
@@ -61,6 +61,7 @@ TCB_CNTNR* update_tc;
 TCB* RUN_ready_queue;
 
 SCHEDULING_ALGORITHM RUN_sa = {
+    .name                  = "RUN",
     .scheduling_initialize = RUN_scheduling_initialize,
     .scheduling_exit       = RUN_scheduling_exit,
     .scheduling            = RUN_schedule,
@@ -69,14 +70,6 @@ SCHEDULING_ALGORITHM RUN_sa = {
     .scheduling_update     = RUN_scheduling_update,
     .job_delete            = NULL
 };
-
-double my_round(double number)
-{
-    overhead_dl += FMUL+FDIV;
-    return ((round(number*10.0))/10.0);
-}
-
-FILE* debug_f;
 
 /*************************** FOR DEBUG ***********************************/
 #ifdef DEBUG
@@ -87,13 +80,13 @@ void SCB_list_print(SCB** scb_list)
 
     if(scb_list==NULL || *scb_list==NULL)
     {
-        printf("scb_list is NULL, in SCB_queue_print\n");
+        log_once(NULL,"scb_list is NULL, in SCB_queue_print\n");
         return;
     }
 
     for(scb = *scb_list,i=0;scb;scb = scb->next,i++)
     {
-        fprintf(debug_f,"%p\t%d\t%f\t%f\t%llu\t%p\n",scb              ,
+        log_c("%p\t%d\t%f\t%f\t%llu\t%p\n",scb              ,
                                                       i                ,
                                                       scb->et          ,
                                                       scb->ultilization,
@@ -107,22 +100,20 @@ void SCB_reduction_tree_print(SCB** SCB_node,int level,int index)
     SCB*      scb = NULL;
     TCB*      tcb = NULL;
 
-    if(SCB_node==NULL || *SCB_node==NULL){fprintf(debug_f,"SCB_node is NULL,in SCB_reduction_tree_print\n");return;}
+    if(SCB_node==NULL || *SCB_node==NULL){log_c("SCB_node is NULL,in SCB_reduction_tree_print\n");return;}
     
-    fprintf(debug_f,"level %d-%d:",level,index);
+    log_c("level %d-%d:",level,index);
 
     scb = *SCB_node;
     switch(scb->is_pack)
     {
         case LEAF:
-            fprintf(debug_f,"LEAF %p\n",scb);
-            //tc = (TCB_CNTNR*)(scb->leaf);
-            //if(tc == NULL){fprintf(stderr,"tc is NULL, in SCB_reduction_tree_print\n");while(TRUE);}
+            log_c("LEAF %p\n",scb);
             tcb = (TCB*)(scb->leaf);
-            if(tcb == NULL){fprintf(stderr,"This tc was exhausted, tid %d\n",tcb->tid);}
+            if(tcb == NULL){log_once(NULL,"This tc was exhausted, tid %d\n",tcb->tid);}
             else
             {
-                fprintf(debug_f,"%p\ttid:%d\ttet:%u\tset:%f\tdl:%llu\n",scb,
+                log_c("%p\ttid:%d\ttet:%u\tset:%f\tdl:%llu\n",scb,
                                                   tcb->tid,
                                                   tcb->et,
                                                   scb->et,
@@ -132,19 +123,19 @@ void SCB_reduction_tree_print(SCB** SCB_node,int level,int index)
         break;
 
         case DUMMY:
-            fprintf(debug_f,"DUMMY\n");
+            log_c("DUMMY\n");
         break;
 
         case PACK:
-            fprintf(debug_f,"PACK %p\n",scb);
-            fprintf(debug_f,"level:%d\tul:%f\tet:%f\tdl:%llu\n",level,scb->ultilization,scb->et,scb->a_dl);         // display ultilization and deadline
+            log_c("PACK %p\n",scb);
+            log_c("level:%d\tul:%f\tet:%f\tdl:%llu\n",level,scb->ultilization,scb->et,scb->a_dl);         // display ultilization and deadline
             SCB_reduction_tree_print((SCB**)(&(scb->leaf)),level+1,0);
             SCB_reduction_tree_print(&(scb->next),level,index+1);
         break;
 
         case DUAL: 
-            fprintf(debug_f,"DUAL %p\n",scb);
-            fprintf(debug_f,"ul:%f\tet:%f\trdl:%llu\tadl:%llu\n",scb->ultilization,scb->et,scb->r_dl,scb->a_dl);         // display ultilization and deadline
+            log_c("DUAL %p\n",scb);
+            log_c("ul:%f\tet:%f\trdl:%llu\tadl:%llu\n",scb->ultilization,scb->et,scb->r_dl,scb->a_dl);         // display ultilization and deadline
             SCB_reduction_tree_print((SCB**)(&(scb->leaf)),level+1,0);
             SCB_reduction_tree_print(&(scb->next),level,index+1);
         break;
@@ -157,16 +148,16 @@ void execution_queue_print(TCB_CNTNR* TC_list)
     TCB_CNTNR* tc = NULL;
     if(TC_list == NULL)
     {
-        fprintf(debug_f,"TC_list is NULL,in execution_queue_print\n");
+        log_c("TC_list is NULL,in execution_queue_print\n");
         return;
     }
 
     for(tc=TC_list;tc;tc=tc->next)
     {
         tcb = tc->tcb;
-        if(tcb == NULL){fprintf(stderr,"tcb is NULL,in execution_queue_print\n");kill(getpid(),SIG_SHOULD_NOT_HAPPENED);}
+        if(tcb == NULL){log_once(NULL,"tcb is NULL,in execution_queue_print\n");kill(getpid(),SIG_SHOULD_NOT_HAPPENED);}
 
-        fprintf(debug_f,"job:%p\t%d\t%u\t%llu\t%p\n",tcb,tcb->tid,tcb->et,tcb->a_dl,tcb->something_else);
+        log_c("job:%p\t%d\t%u\t%llu\t%p\n",tcb,tcb->tid,tcb->et,tcb->a_dl,tcb->something_else);
     }
 }
 
@@ -180,8 +171,8 @@ void SVR_CNTNR_list_print(SVR_CNTNR* SVR_list)
     for(sc=SVR_list;sc;sc=sc->next)
     {
         server = sc->scb;
-        if(server == NULL){fprintf(debug_f,"This server is NULL\n");continue;}
-        fprintf(debug_f,"%p\t%f\t%f\t%llu\n",server,
+        if(server == NULL){log_c("This server is NULL\n");continue;}
+        log_c("%p\t%f\t%f\t%llu\n",server,
                                               server->ultilization,
                                               server->et,
                                               server->a_dl);
@@ -200,7 +191,7 @@ TCB_CNTNR* TCB_to_TCB_CNTNR(TCB* tcb)
 
     overhead_dl += ASSIGN+MEM;
     tcb_cntnr = (TCB_CNTNR*)malloc(sizeof(TCB_CNTNR));
-    if(tcb_cntnr == NULL){fprintf(stderr,"Error with malloc,in TCB_to_TCB_CNTNR\n");kill(getpid(),SIG_SHOULD_NOT_HAPPENED);}
+    if(tcb_cntnr == NULL){log_once(NULL,"Error with malloc,in TCB_to_TCB_CNTNR\n");kill(getpid(),SIG_SHOULD_NOT_HAPPENED);}
 
     tcb_cntnr->tcb  = tcb;
     tcb_cntnr->next = NULL;
@@ -214,13 +205,10 @@ SCB* TCB_to_SCB(TCB* tcb)
 
     overhead_dl += COMP;
     if(tcb == NULL){return NULL;}
-/*
-    tc = TCB_to_TCB_CNTNR(tcb);
-    if(tc == NULL){fprintf(stderr,"tc is NULL,in TCB_to_SCB\n");kill(getpid(),SIG_SHOULD_NOT_HAPPENED);}
-*/
+
     overhead_dl += ASSIGN + MEM;
     scb = (SCB*)malloc(sizeof(SCB));
-    if(scb == NULL){fprintf(stderr,"Fail to allocate the memory, in RUN TCB_to_SCB\n");kill(getpid(),SIG_SHOULD_NOT_HAPPENED);}
+    if(scb == NULL){log_once(NULL,"Fail to allocate the memory, in RUN TCB_to_SCB\n");kill(getpid(),SIG_SHOULD_NOT_HAPPENED);}
 
     overhead_dl += FDIV;
     scb->is_pack          = LEAF;
@@ -246,7 +234,7 @@ SCB* dummy_SCB_create(double ultilization)
 
     overhead_dl += ASSIGN+MEM;
     scb = (SCB*)malloc(sizeof(SCB));
-    if(scb == NULL){fprintf(stderr,"scb is NULL,in dummy_SCB_create\n");kill(getpid(),SIG_SHOULD_NOT_HAPPENED);}
+    if(scb == NULL){log_once(NULL,"scb is NULL,in dummy_SCB_create\n");kill(getpid(),SIG_SHOULD_NOT_HAPPENED);}
 
     scb->is_pack      = DUMMY;
     scb->ultilization = ultilization;
@@ -270,7 +258,7 @@ SCB* SCB_to_packed_SCB(SCB* scb)
 
     overhead_dl += ASSIGN+MEM;
     packed_scb = (SCB*)malloc(sizeof(SCB));
-    if(packed_scb == NULL){fprintf(stderr,"Error with malloc,in SCB_to_packed_SCB\n");kill(getpid(),SIG_SHOULD_NOT_HAPPENED);}
+    if(packed_scb == NULL){log_once(NULL,"Error with malloc,in SCB_to_packed_SCB\n");kill(getpid(),SIG_SHOULD_NOT_HAPPENED);}
 
     packed_scb->is_pack                 = PACK;
     packed_scb->a_dl                    = scb->a_dl;
@@ -342,7 +330,7 @@ SCB* SCB_list_build(TCB** rq)
     double ultilization = (double)0;
 
     overhead_dl += COMP+COMP;
-    if(rq==NULL || *rq==NULL){fprintf(stderr,"rq is NULL,in SCB_list_build\n");return NULL;}
+    if(rq==NULL || *rq==NULL){log_once(NULL,"rq is NULL,in SCB_list_build\n");return NULL;}
 
     for(p = *rq;p;p=p->next)
     {
@@ -454,11 +442,11 @@ SCB* SCB_to_dual(SCB* scb)
     SCB* SCB_dual          = NULL;
 
     overhead_dl += COMP;
-    if(scb == NULL){fprintf(stderr,"Error with malloc,in SCB_server_to_dual\n");return NULL;}
+    if(scb == NULL){log_once(NULL,"Error with malloc,in SCB_server_to_dual\n");return NULL;}
 
     overhead_dl += ASSIGN+MEM;
     SCB_dual = (SCB*)malloc(sizeof(SCB));
-    if(SCB_dual == NULL){fprintf(stderr,"Error with malloc,in SCB_to_dual\n");kill(getpid(),SIG_SHOULD_NOT_HAPPENED);}
+    if(SCB_dual == NULL){log_once(NULL,"Error with malloc,in SCB_to_dual\n");kill(getpid(),SIG_SHOULD_NOT_HAPPENED);}
 
     overhead_dl += FADD + FMUL;
     SCB_dual->is_pack      = DUAL;
@@ -485,7 +473,7 @@ void server_list_insert(SVR_CNTNR** server_list,SCB* server)
     sc = (SVR_CNTNR*)malloc(sizeof(SVR_CNTNR));
     if(sc == NULL)
     {
-        fprintf(stderr,"Error with malloc, in server_list_insert\n");
+        log_once(NULL,"Error with malloc, in server_list_insert\n");
         kill(getpid(),SIG_SHOULD_NOT_HAPPENED);
     }
 
@@ -530,7 +518,7 @@ int server_list_update(SVR_CNTNR* server_list)
         scb = sc->scb;
         if(scb == NULL)
         {
-            fprintf(stderr,"Server is NULL,in server_list_update\n");
+            log_once(NULL,"Server is NULL,in server_list_update\n");
             kill(getpid(),SIG_SHOULD_NOT_HAPPENED);
         }
 
@@ -539,7 +527,7 @@ int server_list_update(SVR_CNTNR* server_list)
         {
             overhead_dl += COMP+COMP;
             tcb = (TCB*)(scb->leaf);
-            if(tcb == NULL){fprintf(stderr,"tcb is NULL,in server_list_update\n");kill(getpid(),SIG_SHOULD_NOT_HAPPENED);}
+            if(tcb == NULL){log_once(NULL,"tcb is NULL,in server_list_update\n");kill(getpid(),SIG_SHOULD_NOT_HAPPENED);}
             scb->et = tcb->et;
         }
         else
@@ -549,14 +537,14 @@ int server_list_update(SVR_CNTNR* server_list)
         }
 
 #ifdef DEBUG
-        fprintf(debug_f,"scb %p\t%f\n",scb,scb->et);
+        log_c("scb %p\t%f\n",scb,scb->et);
 #endif
 
         overhead_dl += COMP;
         if(scb->et <= (double)0)
         {
 #ifdef DEBUG
-            fprintf(debug_f,"Server exhausted : %p\n",scb);
+            log_c("Server exhausted : %p\n",scb);
 #endif
         
             zero_cnt++;
@@ -710,9 +698,9 @@ SCB* SCB_reduction_tree_build(TCB** rq)
 
     SCB_server_list = SCB_list_build(rq);
 #ifdef DEBUG
-    fprintf(debug_f,"scb list server \n");
+    log_c("scb list server \n");
     SCB_list_print(&SCB_server_list);
-    fprintf(debug_f,"\n");
+    log_c("\n");
 #endif
 
     while(TRUE)
@@ -721,79 +709,34 @@ SCB* SCB_reduction_tree_build(TCB** rq)
 
         SCB_packed_server_list = SCB_list_pack(&SCB_server_list);
 #ifdef DEBUG
-        fprintf(debug_f,"packed server \n");
+        log_c("packed server \n");
         SCB_list_print(&SCB_packed_server_list);
-        fprintf(debug_f,"\n");
+        log_c("\n");
 #endif
         RUN_proper_server_remove(&SCB_reduction_root,&SCB_packed_server_list);
 #ifdef DEBUG
-        fprintf(debug_f,"proper system\n");
+        log_c("proper system\n");
         SCB_list_print(&SCB_reduction_root);
-        fprintf(debug_f,"\n");
+        log_c("\n");
 #endif
         if(SCB_packed_server_list == NULL){break;}
 
         SCB_dual_server_list = SCB_dual_list_build(&SCB_packed_server_list);
 #ifdef DEBUG
-        fprintf(debug_f,"dual server\n");
+        log_c("dual server\n");
         SCB_list_print(&SCB_dual_server_list);
-        fprintf(debug_f,"\n");
+        log_c("\n");
 #endif
         SCB_server_list = SCB_dual_server_list;
     }
 
     return SCB_reduction_root;
 }
-/*
-TCB_CNTNR* SCB_reduction_tree_TCB_CNTNR_search(SCB* SCB_node,TCB* tcb)
-{
-    TCB_CNTNR* tc = NULL;
 
-    overhead_dl += COMP+COMP;
-    if(SCB_node==NULL || tcb==NULL){return NULL;}
-    
-    overhead_dl += COMP;
-    switch(SCB_node->is_pack)
-    {
-        case LEAF:
-            overhead_dl += COMP;
-            tc = (TCB_CNTNR*)(SCB_node->leaf);
-            if(tc == NULL)
-            {
-                fprintf(stderr,"tc is NULL,in SCB_reduction_tree_TCB_CNTNR_search\n");
-                kill(getpid(),SIG_SHOULD_NOT_HAPPENED);
-            }
-            overhead_dl += COMP;
-            if(tc->tid == tcb->tid)
-            {
-#ifdef DEBUG
-                fprintf(debug_f,"found target %d\n",tc->tid);
-#endif
-                return tc;
-            }
-            else if((tc=SCB_reduction_tree_TCB_CNTNR_search(SCB_node->next,tcb))!=NULL){return tc;}
-            else{return NULL;}
-        break;
-
-        case DUMMY:
-            return NULL;
-        break;
-        
-        default:
-            overhead_dl += COMP;
-            if((tc=SCB_reduction_tree_TCB_CNTNR_search(SCB_node->next,tcb))!=NULL){return tc;}
-            overhead_dl += COMP;
-            if((tc=SCB_reduction_tree_TCB_CNTNR_search((SCB*)(SCB_node->leaf),tcb))!=NULL){return tc;}
-        break;
-    }
-
-    return NULL;
-}
-*/
 
 int SCB_reduction_tree_node_update(SCB* SCB_node)
 {
-    int updated                    = 0;
+    int                    updated = 0;
     SCB*                       scb = NULL;
     unsigned long long earliest_dl = TICKS;
 
@@ -806,7 +749,7 @@ int SCB_reduction_tree_node_update(SCB* SCB_node)
         case PACK:
             overhead_dl += COMP;
             scb = (SCB*)(SCB_node->leaf);
-            if(scb == NULL){fprintf(stderr,"SCB_node->leaf is NULL,in SCB_reduction_tree_node_update");kill(getpid(),SIG_SHOULD_NOT_HAPPENED);}
+            if(scb == NULL){log_once(NULL,"SCB_node->leaf is NULL,in SCB_reduction_tree_node_update");kill(getpid(),SIG_SHOULD_NOT_HAPPENED);}
 
             for(;scb;scb=scb->next)
             {   
@@ -836,7 +779,7 @@ int SCB_reduction_tree_node_update(SCB* SCB_node)
             
             overhead_dl += COMP;
             scb = (SCB*)(SCB_node->leaf);
-            if(scb == NULL){fprintf(stderr,"SCB_node->leaf is NULL,in SCB_reduction_tree_node_update");kill(getpid(),SIG_SHOULD_NOT_HAPPENED);}
+            if(scb == NULL){log_once(NULL,"SCB_node->leaf is NULL,in SCB_reduction_tree_node_update");kill(getpid(),SIG_SHOULD_NOT_HAPPENED);}
             
             overhead_dl += FMUL+FADD;
             SCB_node->a_dl = scb->a_dl;
@@ -1016,7 +959,7 @@ void RUN_scheduling_initialize()
 
     for(i=0;i<MAX_TASKS;i++){assignment_history[i]=-1;}
 
-    debug_f = fopen("RUN_debug.txt","w+");
+    log_open("RUN_debug.txt");
 }
 
 void RUN_scheduling_update()
@@ -1037,12 +980,12 @@ int RUN_insert_OK(TCB* t1,TCB* t2)
     if(has_new_task){return 1;}
 
 #ifdef DEBUG
-    fprintf(debug_f,"At tick:: %llu,%d has came.\n",tick,t1->tid);
+    log_c("At tick:: %llu,%d has came.\n",tick,t1->tid);
 #endif
 
     overhead_dl += COMP;
     scb = (SCB*)(t1->something_else);
-    if(scb == NULL){fprintf(stderr,"scb is NULL, in RUN_insert_OK\n");kill(getpid(),SIG_SHOULD_NOT_HAPPENED);}
+    if(scb == NULL){log_once(NULL,"scb is NULL, in RUN_insert_OK\n");kill(getpid(),SIG_SHOULD_NOT_HAPPENED);}
 
     scb->et      = (double)t1->et;
     scb->a_dl    = t1->a_dl;
@@ -1066,8 +1009,8 @@ void RUN_reorganize_function(TCB** rq)
     }
 
 #ifdef DEBUG
-    fprintf(debug_f,"tick : %llu nt:%d ni:%d sf:%d\n",tick,has_new_task,has_new_instance,has_server_finished);
-    fprintf(debug_f,"Original TCB list:\n");
+    log_c("tick : %llu nt:%d ni:%d sf:%d\n",tick,has_new_task,has_new_instance,has_server_finished);
+    log_c("Original TCB list:\n");
     TCB_list_print(p_ready_queue);
 #endif
 
@@ -1093,8 +1036,8 @@ void RUN_reorganize_function(TCB** rq)
     {
         overhead_dl += COMP;
 #ifdef DEBUG
-        fprintf(debug_f,"Has new instance,will update reduction tree\n"); 
-        fprintf(debug_f,"old Servers:\n");
+        log_c("Has new instance,will update reduction tree\n"); 
+        log_c("old Servers:\n");
         SVR_CNTNR_list_print(selected_server_list);
 #endif
         execution_queue_destory(&execution_queue);
@@ -1109,7 +1052,7 @@ void RUN_reorganize_function(TCB** rq)
         SCB_reduction_tree_unpack(&SCB_root);
 
 #ifdef DEBUG
-        fprintf(debug_f,"New servers:\n");
+        log_c("New servers:\n");
         SVR_CNTNR_list_print(selected_server_list);
         execution_queue_print(execution_queue);
 #endif
@@ -1118,8 +1061,8 @@ void RUN_reorganize_function(TCB** rq)
     {
         overhead_dl += COMP;
 #ifdef DEBUG
-        fprintf(debug_f,"Has server finished,will unpack reduction tree again\n"); 
-        fprintf(debug_f,"old Servers:\n");
+        log_c("Has server finished,will unpack reduction tree again\n"); 
+        log_c("old Servers:\n");
         SVR_CNTNR_list_print(selected_server_list);
 #endif
         execution_queue_destory(&execution_queue);
@@ -1131,7 +1074,7 @@ void RUN_reorganize_function(TCB** rq)
         SCB_reduction_tree_unpack(&SCB_root);
 
 #ifdef DEBUG
-        fprintf(debug_f,"New servers:\n");
+        log_c("New servers:\n");
         SVR_CNTNR_list_print(selected_server_list);
         execution_queue_print(execution_queue);
 #endif
@@ -1192,8 +1135,8 @@ void RUN_schedule()
         {
             overhead_dl += COMP;
             overhead_dl += COMP+COMP;
-            if(tc == NULL){fprintf(stderr,"tc is NULL,in RUN schedule\n");break;}
-            if(tc->tcb == NULL){fprintf(stderr,"tc->tcb is NULL,in RUN schedule\n");break;}
+            if(tc == NULL){log_once(NULL,"tc is NULL,in RUN schedule\n");break;}
+            if(tc->tcb == NULL){log_once(NULL,"tc->tcb is NULL,in RUN schedule\n");break;}
             
             processor_id = processor_assignment(tc->tcb);
             overhead_dl += COMP+COMP;
@@ -1211,7 +1154,7 @@ void RUN_schedule()
             }
             
 #ifdef DEBUG
-            fprintf(debug_f,"tc %p,tcb %p,tid %d %d\n",tc,tc->tcb,tc->tcb->tid,processor_id);
+            log_c("tc %p,tcb %p,tid %d %d\n",tc,tc->tcb,tc->tcb->tid,processor_id);
 #endif
             // Since we didn't found any available Processor.
             overhead_dl += COMP;
@@ -1228,7 +1171,7 @@ void RUN_schedule()
     for(i=0;i<PROCESSOR_NUM;i++)
     {
         if(!_kernel_runtsk[i]){continue;}
-        fprintf(debug_f,"pid:%d\t%p\ttid:%d\n",i,_kernel_runtsk[i],_kernel_runtsk[i]->tid);
+        log_c("pid:%d\t%p\ttid:%d\n",i,_kernel_runtsk[i],_kernel_runtsk[i]->tid);
     }
     //getchar();
 #endif
@@ -1243,7 +1186,7 @@ void RUN_scheduling_exit()
 
     execution_queue_destory(&execution_queue);
 
-    fclose(debug_f);
+    log_close();
 #ifdef DEBUG
     printf("RUN end normally\n");
 #endif

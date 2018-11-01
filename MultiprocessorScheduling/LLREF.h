@@ -19,6 +19,8 @@ int LLREF_insert_OK(TCB*,TCB*);
 
 void LLREF_reorganize_function(TCB** rq);
 
+void LLREF_scheduling_update();
+
 void LLREF_scheduling_exit();
 
 #endif

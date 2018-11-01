@@ -6,13 +6,16 @@
 #include <unistd.h>
 
 #include "Schedule.h"
+
+#include "log/log.h"
+#include "tool/tool.h"
 #include "signal.h"
 
 //Scehduling algorithms
 //#include "RM.h"
 //#include "LSF.h"
 //#include "EDF.h"
-#include "LLREF.h"
+//#include "LLREF.h"
 #include "RUN.h"
 
 //#define AP_ALSO
@@ -41,7 +44,7 @@ extern SCHEDULING_ALGORITHM RUN_sa;
 /***********************************************************************************************************/
 /* Variables                                                                                               */
 /***********************************************************************************************************/
-
+char*               current_algorithm;
 unsigned long long  tick;
 unsigned            et[MAX_TASKS][MAX_INSTANCES];       /* Rest execution time of each job                 */
 unsigned            wcet[MAX_TASKS];                    /* Worst execution time                            */
@@ -90,7 +93,7 @@ int main ( int argc, char *argv[] )
     unsigned           task_id, task_wcet, task_et, prev_task_id=MAX_TASKS;
     unsigned long long task_period, task_req_tim;
 
-    if(argc<2){fprintf(stderr,"Argument Error\n");exit(-1);}
+    if(argc < 2){log_once(NULL,"Argument Error\n");exit(-1);}
 
     signal_init();
 
@@ -142,12 +145,9 @@ int main ( int argc, char *argv[] )
     }
 
   /* Inputting periodic tasks' information */
-    while ( fgets ( buf, BUFSIZ, p_cfp ) != NULL ) 
+    while(fgets ( buf, BUFSIZ, p_cfp ) != NULL) 
     {
-        if ( buf[0] == '#' )
-        {
-            continue;
-        }
+        if(buf[0] == '#'){continue;}
         sscanf ( buf, "%d\t%d\t%d\t%llu\t%llu\n", &task_id, &task_wcet, &task_et, &task_period, &task_req_tim );
 
         wcet[task_id]                        = task_wcet;
@@ -197,14 +197,14 @@ int main ( int argc, char *argv[] )
     fclose ( ap_cfp );
 #endif
 
-    fprintf(stderr,"===============================================================\n");
-    fprintf(stderr,"            Working on Ultilization %f       \n",p_util);
-    fprintf(stderr,"===============================================================\n");
+    log_once(NULL,"===============================================================\n");
+    log_once(NULL,"            Working on Ultilization %f       \n",p_util);
+    log_once(NULL,"===============================================================\n");
 
     fclose ( p_cfp );
     if ( p_util > UTIL_UPPERBOUND ) 
     {
-        fprintf(stderr,"Cannot execute tasks over %2f%% utilization\nCurrent ultilization: %2f%%\n",UTIL_UPPERBOUND*100,p_util);
+        log_once(NULL,"Cannot execute tasks over %2f%% utilization\nCurrent ultilization: %2f%%\n",UTIL_UPPERBOUND*100,p_util);
         printf ( "Cannot execute tasks over %2f%% utilization\nCurrent ultilization: %2f%%\n",UTIL_UPPERBOUND,p_util);
         return 0;
     }
@@ -219,100 +219,100 @@ int main ( int argc, char *argv[] )
 /****************************************************************************************************************/
 #ifdef RM
 
-    fprintf(stderr,"RN\n");
+    log_once(NULL,"RN\n");
     
     run_simulation("RM",RM_sa);
   
-    fprintf ( ovhd_dl_max_fp,   ", %llu", overhead_dl_max );
-    fprintf ( ovhd_dl_total_fp, ", %llu", overhead_dl_total );
-    fprintf ( ovhd_al_max_fp,   ", %llu", overhead_alpha_max );
-    fprintf ( ovhd_al_total_fp, ", %llu", overhead_alpha_total );
+    fprintf(ovhd_dl_max_fp,   ", %llu", overhead_dl_max );
+    fprintf(ovhd_dl_total_fp, ", %llu", overhead_dl_total );
+    fprintf(ovhd_al_max_fp,   ", %llu", overhead_alpha_max );
+    fprintf(ovhd_al_total_fp, ", %llu", overhead_alpha_total );
 
 
 #else
     
-    fprintf ( ovhd_dl_max_fp, "," );
-    fprintf ( ovhd_dl_total_fp, "," );
-    fprintf ( ovhd_al_max_fp, "," );
-    fprintf ( ovhd_al_total_fp, "," );
+    fprintf(ovhd_dl_max_fp, "," );
+    fprintf(ovhd_dl_total_fp, "," );
+    fprintf(ovhd_al_max_fp, "," );
+    fprintf(ovhd_al_total_fp, "," );
 
 #endif
 
 #ifdef LSF
-    fprintf(stderr,"LSF\n");
+    log_once(NULL,"LSF\n");
 
     run_simulation("LSF",LSF_sa);
     
-    fprintf ( ovhd_dl_max_fp,   ", %llu", overhead_dl_max );
-    fprintf ( ovhd_dl_total_fp, ", %llu", overhead_dl_total );
-    fprintf ( ovhd_al_max_fp,   ", %llu", overhead_alpha_max );
-    fprintf ( ovhd_al_total_fp, ", %llu", overhead_alpha_total );
+    fprintf(ovhd_dl_max_fp,   ", %llu", overhead_dl_max );
+    fprintf(ovhd_dl_total_fp, ", %llu", overhead_dl_total );
+    fprintf(ovhd_al_max_fp,   ", %llu", overhead_alpha_max );
+    fprintf(ovhd_al_total_fp, ", %llu", overhead_alpha_total );
 
 
 #else
     
-    fprintf ( ovhd_dl_max_fp  , "," );
-    fprintf ( ovhd_dl_total_fp, "," );
-    fprintf ( ovhd_al_max_fp  , "," );
-    fprintf ( ovhd_al_total_fp, "," );
+    fprintf(ovhd_dl_max_fp  , "," );
+    fprintf(ovhd_dl_total_fp, "," );
+    fprintf(ovhd_al_max_fp  , "," );
+    fprintf(ovhd_al_total_fp, "," );
 
 #endif
 
 #ifdef EDF
-    fprintf(stderr,"EDF\n");
+    log_once(NULL,"EDF\n");
 
     run_simulation("EDF",EDF_sa);
 
-    fprintf ( ovhd_dl_max_fp,   ", %llu", overhead_dl_max );
-    fprintf ( ovhd_dl_total_fp, ", %llu", overhead_dl_total );
-    fprintf ( ovhd_al_max_fp,   ", %llu", overhead_alpha_max );
-    fprintf ( ovhd_al_total_fp, ", %llu", overhead_alpha_total );
+    fprintf(ovhd_dl_max_fp,   ", %llu", overhead_dl_max );
+    fprintf(ovhd_dl_total_fp, ", %llu", overhead_dl_total );
+    fprintf(ovhd_al_max_fp,   ", %llu", overhead_alpha_max );
+    fprintf(ovhd_al_total_fp, ", %llu", overhead_alpha_total );
 #else
     
-    fprintf ( ovhd_dl_max_fp  , "," );
-    fprintf ( ovhd_dl_total_fp, "," );
-    fprintf ( ovhd_al_max_fp  , "," );
-    fprintf ( ovhd_al_total_fp, "," );
+    fprintf(ovhd_dl_max_fp  , "," );
+    fprintf(ovhd_dl_total_fp, "," );
+    fprintf(ovhd_al_max_fp  , "," );
+    fprintf(ovhd_al_total_fp, "," );
 #endif
 
 #ifdef LLREF
-    fprintf(stderr,"LLREF\n");
+    log_once(NULL,"%s\n",LLREF_sa.name);
 
-    run_simulation("LLREF",LLREF_sa);
+    run_simulation(LLREF_sa.name,LLREF_sa);
   
-    fprintf ( ovhd_dl_max_fp,   ", %llu", overhead_dl_max );
-    fprintf ( ovhd_dl_total_fp, ", %llu", overhead_dl_total );
-    fprintf ( ovhd_al_max_fp,   ", %llu", overhead_alpha_max );
-    fprintf ( ovhd_al_total_fp, ", %llu", overhead_alpha_total );
+    fprintf(ovhd_dl_max_fp,   ", %llu", overhead_dl_max );
+    fprintf(ovhd_dl_total_fp, ", %llu", overhead_dl_total );
+    fprintf(ovhd_al_max_fp,   ", %llu", overhead_alpha_max );
+    fprintf(ovhd_al_total_fp, ", %llu", overhead_alpha_total );
 #else    
 
-    fprintf ( ovhd_dl_max_fp  , "," );
-    fprintf ( ovhd_dl_total_fp, "," );
-    fprintf ( ovhd_al_max_fp  , "," );
-    fprintf ( ovhd_al_total_fp, "," );
+    fprintf(ovhd_dl_max_fp  , "," );
+    fprintf(ovhd_dl_total_fp, "," );
+    fprintf(ovhd_al_max_fp  , "," );
+    fprintf(ovhd_al_total_fp, "," );
 #endif
 
 #ifdef RUN
-    fprintf(stderr,"RUN\n");
+    log_once(NULL,"%s\n",RUN_sa.name);
 
-    run_simulation("RUN",RUN_sa);
+    run_simulation(RUN_sa.name,RUN_sa);
   
-    fprintf ( ovhd_dl_max_fp,   ", %llu", overhead_dl_max );
-    fprintf ( ovhd_dl_total_fp, ", %llu", overhead_dl_total );
-    fprintf ( ovhd_al_max_fp,   ", %llu", overhead_alpha_max );
-    fprintf ( ovhd_al_total_fp, ", %llu", overhead_alpha_total );
+    fprintf(ovhd_dl_max_fp,   ", %llu", overhead_dl_max );
+    fprintf(ovhd_dl_total_fp, ", %llu", overhead_dl_total );
+    fprintf(ovhd_al_max_fp,   ", %llu", overhead_alpha_max );
+    fprintf(ovhd_al_total_fp, ", %llu", overhead_alpha_total );
 #else    
 
-    fprintf ( ovhd_dl_max_fp  , "," );
-    fprintf ( ovhd_dl_total_fp, "," );
-    fprintf ( ovhd_al_max_fp  , "," );
-    fprintf ( ovhd_al_total_fp, "," );
+    fprintf(ovhd_dl_max_fp  , "," );
+    fprintf(ovhd_dl_total_fp, "," );
+    fprintf(ovhd_al_max_fp  , "," );
+    fprintf(ovhd_al_total_fp, "," );
 #endif
 
-    fclose ( ovhd_dl_max_fp );
-    fclose ( ovhd_dl_total_fp );
-    fclose ( ovhd_al_max_fp );
-    fclose ( ovhd_al_total_fp );
+    fclose(ovhd_dl_max_fp );
+    fclose(ovhd_dl_total_fp );
+    fclose(ovhd_al_max_fp );
+    fclose(ovhd_al_total_fp );
 
     return 0;
 }
@@ -337,7 +337,8 @@ void run_simulation(char* s,SCHEDULING_ALGORITHM sa)
     scheduling            = (void (*)())sa.scheduling;
     reorganize_function   = (void (*)(TCB**))sa.reorganize_function;
     scheduling_exit       = (void (*)())sa.scheduling_exit;
-    
+    current_algorithm     = s;
+
     Initialize ();
     scheduling_initialize();
 
@@ -349,8 +350,8 @@ void run_simulation(char* s,SCHEDULING_ALGORITHM sa)
             {
                 has_new_instance = 1;
 
-                entry = entry_set ( i );
-                if ( periodic[i] == 1 ) 
+                entry = entry_set(i);
+                if (periodic[i] == 1) 
                 {
                     if(phase[i] == tick){has_new_task = 1;}
                     entry -> a_dl = tick + period[i];
@@ -364,7 +365,7 @@ void run_simulation(char* s,SCHEDULING_ALGORITHM sa)
 
                 if(multi_TCB_check(s,&p_ready_queue) > 0)
                 {
-                    fprintf(stderr,"multi TCB detected,in run_simulation\n");
+                    log_once(NULL,"multi TCB detected,in run_simulation\n");
                     TCB_list_print(p_ready_queue);
                     kill(getpid(),SIG_SHOULD_NOT_HAPPENED);
                 }
@@ -372,14 +373,14 @@ void run_simulation(char* s,SCHEDULING_ALGORITHM sa)
         }
         reorganize_function(&p_ready_queue);
 
-        if ( ap_ready_queue == NULL && fifo_ready_queue != NULL ) 
+        if(ap_ready_queue==NULL && fifo_ready_queue!=NULL) 
         {
             from_fifo_to_ap ();
         }  
         /* Scheduling */
         scheduling();
         /* Tick increment/et decrement and Setting last_empty & used_dl*/
-        Tick_inc (sa.scheduling_update);
+        Tick_inc(s,sa.scheduling_update);
 
         for(processor_id=0;processor_id<PROCESSOR_NUM;processor_id++)
         {
@@ -409,6 +410,7 @@ void insert_queue( TCB **rq,TCB *entry,void* function)
     {
         if(p->tid == entry->tid)
         {
+            if(p->et != 0){log_once(NULL,"OOPS!Wrong with %d\n",p->tid);kill(getpid(),SIG_SHOULD_NOT_HAPPENED);}
             memcpy(p,entry,DIFF(TCB,something_else));
             free(entry);
 
@@ -513,9 +515,9 @@ void Initialize ( void )
 {
     int i;
 
-    has_new_instance        = 0;
-    has_new_task            = 0;
-    has_task_finished       = 0;
+    has_new_instance  = 0;
+    has_new_task      = 0;
+    has_task_finished = 0;
 
     for(i=0;i<PROCESSOR_NUM;i++)
     {
@@ -525,8 +527,8 @@ void Initialize ( void )
     for ( i = 0; i < MAX_TASKS; i++ ) 
     {
         exec_times[i] = 0;
-        inst_no[i] = 0;
-        job_util[i] = 0.0;
+        inst_no[i]    = 0;
+        job_util[i]   = 0.0;
     }
 
     p_ready_queue    = NULL;
@@ -548,26 +550,26 @@ TCB *entry_set ( int i)
 {
     TCB *entry;
 
-    entry =  malloc ( sizeof ( TCB ) );
-    entry -> tid             = i;
-    entry -> inst_no         = inst_no[i];
-    entry -> req_tim         = tick;
-    entry -> et              = et[i][inst_no[i]];
-    entry -> wcet            = wcet[i];
-    entry -> initial_et      = et[i][inst_no[i]];
-    entry -> next = entry -> prev = NULL;
-    entry -> something_else = NULL;
-    entry -> a_dl = (unsigned long long)0xFFFFFFFFFFFFFFFF;  // dummy necessary
+    entry = (TCB*)malloc(sizeof(TCB));
+    entry->tid             = i;
+    entry->inst_no         = inst_no[i];
+    entry->req_tim         = tick;
+    entry->et              = et[i][inst_no[i]];
+    entry->wcet            = wcet[i];
+    entry->initial_et      = et[i][inst_no[i]];
+    entry->next = entry -> prev = NULL;
+    entry->something_else  = NULL;
+    entry->a_dl            = (unsigned long long)0xFFFFFFFFFFFFFFFF;  // dummy necessary
   
     return entry;
 }
 
-void Tick_inc (void* update_function)
+void Tick_inc (char* s,void* job_update)
 {
     int i;
     void (*scheduling_update)() = NULL;
 
-    Overhead_Record ( );
+    Overhead_Record();
     
     tick++;
 
@@ -575,16 +577,27 @@ void Tick_inc (void* update_function)
     {
         if ( _kernel_runtsk[i] != NULL ) 
         {
-            (_kernel_runtsk[i] -> et)--;
+            (_kernel_runtsk[i]->et)--;
         }   
     }
 
-    if(update_function != NULL)
+    if(job_update != NULL)
     {
-        scheduling_update = update_function;
+        scheduling_update = job_update;
         scheduling_update();
     }
 
+    //Here check the deadline miss event.
+    for(i=0;i<PROCESSOR_NUM;i++)
+    {
+        if(_kernel_runtsk[i] != NULL) 
+        {
+            if((_kernel_runtsk[i]->a_dl)-tick < (_kernel_runtsk[i]->et))
+            {
+                deadline_miss_log(s,_kernel_runtsk[i]);
+            }
+        }
+    }
     return;
 }
 
@@ -592,14 +605,14 @@ void Tick_inc (void* update_function)
 void Overhead_Record ( void )
 {
 
-    if ( overhead_dl_max < overhead_dl )
+    if(overhead_dl_max < overhead_dl)
     {
-      overhead_dl_max = overhead_dl;
+		overhead_dl_max = overhead_dl;
     }
   
-    if ( overhead_alpha_max < overhead_alpha )
+    if(overhead_alpha_max < overhead_alpha)
     {
-      overhead_alpha_max = overhead_alpha;
+    	overhead_alpha_max = overhead_alpha;
     }
 
     overhead_dl_total    += overhead_dl;
@@ -661,7 +674,7 @@ int multi_TCB_check(char* s,TCB** rq)
     TCB* tcb_p = NULL;
     TCB* tcb_q = NULL;
 
-    if(rq==NULL || *rq==NULL){fprintf(stderr,"rq or *rq is NULL,in multi_TCB_check\n");return -1;}
+    if(rq==NULL || *rq==NULL){log_once(NULL,"rq or *rq is NULL,in multi_TCB_check\n");return -1;}
 
     check_result = 0;
     for(tcb_p=*rq;tcb_p;tcb_p=tcb_p->next)
@@ -683,10 +696,10 @@ void TCB_list_print(TCB* TCB_list)
 {
     TCB* tcb = NULL;
 
-    if(TCB_list == NULL){fprintf(stderr,"TCB_list is NULL,in TCB_list_print\n");return;}
+    if(TCB_list == NULL){log_once(NULL,"TCB_list is NULL,in TCB_list_print\n");return;}
 
     for(tcb=TCB_list;tcb;tcb=tcb->next)
     {
-        fprintf(stderr,"job: %p\t%d\t%u\t%llu\t%p\n",tcb,tcb->tid,tcb->et,tcb->a_dl,tcb->something_else);
+        log_once(NULL,"job: %p\t%d\t%u\t%llu\t%p\n",tcb,tcb->tid,tcb->et,tcb->a_dl,tcb->something_else);
     }
 }

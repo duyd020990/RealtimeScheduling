@@ -1,11 +1,18 @@
 #include "signal.h"
 
+#include "Schedule.h"
+#include "log/log.h"
+
 #include <stdio.h>
+#include <stdlib.h>
 #include <unistd.h>
 #include <signal.h>
 #include <string.h>
 
-extern FILE* debug_f;
+extern char* current_algorithm;
+
+extern FILE* fp;
+
 void signal_init()
 {
     struct sigaction sa_segment_fault;
@@ -46,10 +53,20 @@ void segfault_handler(int signal,siginfo_t* si,void* arg)
 
 void should_not_happened_handler(int signal,siginfo_t* si,void* arg)
 {
-    fprintf(stderr,"%s\n%s\n%s\n%s\n","=============================================",
+    log_once(NULL,"%s\n%s\n%s\n%s\n","=============================================",
                                       "Something should not happened things happened", 
                                       "         Go check your program               ",
                                       "=============================================");
-    fclose(debug_f);
+    log_close();
+    pause();
+}
+
+void deadline_miss_handler(int signal,siginfo_t* si,void* arg)
+{
+    if(si == NULL){exit(-1);}
+
+    if(current_algorithm == NULL){exit(-1);}
+
+    log_close();
     pause();
 }

@@ -54,6 +54,7 @@ typedef struct tcb {
 */
 typedef struct 
 {
+    char* name;
     void* scheduling_initialize;
     void* scheduling_exit;    
     void* scheduling;
@@ -78,7 +79,7 @@ void run_simulation(char* s,SCHEDULING_ALGORITHM sa);
 
 void Initialize ( void );
 
-void Tick_inc ( );
+void Tick_inc (char* s,void* job_update );
 
 TCB* entry_set ( int );
 
