@@ -15,7 +15,7 @@ int log_open(char* file_name)
 {
     if(file_name == NULL)
     {
-        fp = stdin;
+        fp = stderr;
         return 1;
     }
     
@@ -28,7 +28,7 @@ int log_open(char* file_name)
 //Close the log file.
 int log_close()
 {
-    if(fp==NULL || fp==stdin){return 0;}
+    if(fp==NULL || fp==stderr){return 0;}
     
     if(!fclose(fp)){return 0;}
     
