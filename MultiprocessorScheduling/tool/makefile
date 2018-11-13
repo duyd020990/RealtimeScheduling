@@ -1,3 +1,5 @@
+OBJECTS=tool.o
 
-tool.o:
-	gcc -c tool.c -o ../tool.o
+tool.o:tool.c tool.h
+	gcc -c tool.c 
+	mv $(OBJECTS) ../

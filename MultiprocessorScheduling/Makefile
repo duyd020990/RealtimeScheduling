@@ -7,10 +7,10 @@ objects		= Schedule.o RM.o LSF.o EDF.o ILSF.o RUN.o LLREF.o signal.o log.o tool.
 all:		$(TARGET)
 
 log.o:
-	cd log && make log.o
+	@cd log && make log.o
 
 tool.o:
-	cd tool && make tool.o
+	@cd tool && make tool.o
 
 RM.o:RM.c RM.h
 	gcc -c $(CFLAGS) RM.c
@@ -40,4 +40,5 @@ Schedule:$(objects)
 	gcc -o Schedule $(objects) $(LDFLAGS) 
 	mv *.o Schedule ../
 
-clean:;		rm -f $(TARGET) *.o
+clean:
+	rm -f $(TARGET) *.o

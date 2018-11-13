@@ -16,7 +16,6 @@
 
 #define DEBUG
 
-
 extern TCB* _kernel_runtsk[PROCESSOR_NUM];
 extern TCB* _kernel_runtsk_pre[PROCESSOR_NUM];
 extern TCB* p_ready_queue;
@@ -239,7 +238,9 @@ int LLREF_check_Second_Event(TCB** rq)
         
         overhead_dl += COMP;
         lrect = ll->local_remaining_execution_time;
+#ifdef DEBUG
         log_c("tid lrect exhausted %llu\t%d\t%.20f\n",tick,_kernel_runtsk[i]->tid,lrect);
+#endif
         if(lrect<(double)0 || IS_EQUAL(lrect,(double)0))
         {
 #ifdef DEBUG
