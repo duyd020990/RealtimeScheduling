@@ -9,7 +9,7 @@
 
 #include "log/log.h"
 #include "tool/tool.h"
-#include "signal.h"
+#include "signal/signal.h"
 
 //Scehduling algorithms
 //#include "RM.h"

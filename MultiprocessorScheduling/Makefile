@@ -12,6 +12,9 @@ log.o:
 tool.o:
 	@cd tool && make tool.o
 
+signal.o:
+	@cd signal && make signal.o
+
 RM.o:RM.c RM.h
 	gcc -c $(CFLAGS) RM.c
 
@@ -29,9 +32,6 @@ RUN.o:RUN.c RUN.h
 
 LLREF.o:LLREF.c LLREF.h
 	gcc -c $(CFLAGS) LLREF.c
-
-signal.o:signal.c signal.h
-	gcc -c $(CFLAGS) signal.c
 
 Schedule.o:Schedule.c Schedule.h
 	gcc -c $(CFLAGS) Schedule.c

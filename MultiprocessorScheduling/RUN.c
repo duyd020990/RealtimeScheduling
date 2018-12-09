@@ -13,9 +13,9 @@ run scheduling
 #include "RUN.h"
 
 #include "Schedule.h"
-#include "signal.h"
 #include "log/log.h"
-#include "tool/tool.h" 
+#include "tool/tool.h"
+#include "signal/signal.h"
 
 #include "EDF.h"
 

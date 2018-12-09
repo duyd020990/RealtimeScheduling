@@ -1,8 +1,10 @@
 #include "signal.h"
 
-#include "Schedule.h"
-#include "log/log.h"
+// From simulator
+#include "../Schedule.h"
+#include "../log/log.h"
 
+// From Linux or POSIX
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -17,10 +19,12 @@ void signal_init()
 {
     struct sigaction sa_segment_fault;
     struct sigaction sa_should_not_happened;
+    struct sigaction sa_intrp;
 
-    memset(&sa_segment_fault,0,sizeof(struct sigaction));
+    memset(&sa_segment_fault      ,0,sizeof(struct sigaction));
     memset(&sa_should_not_happened,0,sizeof(struct sigaction));
-    
+    memset(&sa_intrp              ,0,sizeof(struct sigaction));
+
     sigemptyset(&sa_segment_fault.sa_mask);
     sa_segment_fault.sa_sigaction = segfault_handler;
     sa_segment_fault.sa_flags     = SA_SIGINFO;
@@ -29,8 +33,13 @@ void signal_init()
     sa_should_not_happened.sa_sigaction = should_not_happened_handler;
     sa_should_not_happened.sa_flags     = SA_SIGINFO;
 
+    sigemptyset(&sa_intrp.sa_mask);
+    sa_intrp.sa_sigaction = intrp_handler; 
+    sa_intrp.sa_flags     = SA_SIGINFO;
+
     sigaction(SIGSEGV,&sa_segment_fault,NULL);
     sigaction(SIG_SHOULD_NOT_HAPPENED,&sa_should_not_happened,NULL);
+    sigaction(SIGINT,&sa_intrp,NULL);
 }
 
 
@@ -69,4 +78,14 @@ void deadline_miss_handler(int signal,siginfo_t* si,void* arg)
 
     log_close();
     pause();
+}
+
+void intrp_handler(int signal,siginfo_t* si,void* arg)
+{
+    fprintf(stderr,"INTERRUPTED\n");
+
+    log_close();
+
+    exit(-1);
+    return;
 }
