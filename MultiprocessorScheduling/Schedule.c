@@ -16,8 +16,8 @@
 //#include "LSF.h"
 //#include "EDF.h"
 //#include "LLREF.h"
-#include "RUN.h"
-
+//#include "RUN.h"
+#include "HEDF.h"
 //#define AP_ALSO
 
 #ifdef LSF
@@ -41,6 +41,10 @@ extern SCHEDULING_ALGORITHM LLREF_sa;
 extern SCHEDULING_ALGORITHM RUN_sa; 
 #endif
 
+#ifdef HEDF
+extern SCHEDULING_ALGORITHM HEDF_sa;
+#endif
+
 /***********************************************************************************************************/
 /* Variables                                                                                               */
 /***********************************************************************************************************/
@@ -59,6 +63,8 @@ double              job_util[MAX_TASKS];                /* The ultilization of e
 unsigned int        aperiodic_exec_times;               /* Don't know the purpose, might be for those aperiodic tasks :P */
 unsigned int        aperiodic_total_et;                 /* Don't know the purpose, might be for those aperiodic tasks :P */
 double              aperiodic_response_time;            /* Don't know the purpose, might be for those aperiodic tasks :P */
+int                 task_assignment_history[MAX_TASKS]; /* For recording the processor assignment history */
+int                 task_release[TICKS];                /* For recording the task release time  */
 
 TCB*     p_ready_queue;
 TCB*     ap_ready_queue;
@@ -87,7 +93,11 @@ int main ( int argc, char *argv[] )
 #ifdef AP_ALSO
     FILE              *ap_cfp;
 #endif
-    FILE              *ovhd_dl_max_fp, *ovhd_al_max_fp, *ovhd_dl_total_fp, *ovhd_al_total_fp;
+    FILE*              ovhd_dl_max_fp;
+    FILE*              ovhd_al_max_fp;
+    FILE*              ovhd_dl_total_fp;
+    FILE*              ovhd_al_total_fp;
+    FILE*              migration_fp;
     int                i, j;
     char               buf[BUFSIZ];
     unsigned           task_id, task_wcet, task_et, prev_task_id=MAX_TASKS;
@@ -95,11 +105,11 @@ int main ( int argc, char *argv[] )
 
     if(argc < 2){log_once(NULL,"Argument Error\n");exit(-1);}
 
+    // Initialize the signal handler
     signal_init();
 
-#ifdef LLREF
-    memset(release_time,0,sizeof(int)*TICKS);
-#endif
+    // Reset the task_release array 
+    memset(task_release,0,sizeof(int)*TICKS);
 
     if ( (p_cfp = fopen ( argv[1], "r") ) == NULL ) {
         printf ( "Cannot open \"%s\"\n",argv[1] );
@@ -136,6 +146,12 @@ int main ( int argc, char *argv[] )
       return 1;
     }
     fseek ( ovhd_al_total_fp, 0, SEEK_END );
+
+    if ( ( migration_fp = fopen( "migration.csv", "a" ) ) == NULL){
+        printf ( "Cannot open \"migration.csv\"\n" );
+        return 1;
+    }
+    fseek ( migration_fp, 0, SEEK_END );
   
 
     for ( i = 0; i < MAX_TASKS; i++ ) {
@@ -153,9 +169,9 @@ int main ( int argc, char *argv[] )
         wcet[task_id]                        = task_wcet;
         et[task_id][inst_no[task_id]]        = task_wcet;    /* At the moment, WCET is set for periodic tasks */
         req_tim[task_id][inst_no[task_id]++] = task_req_tim;
-#ifdef LLREF
-        release_time[task_req_tim]=1;
-#endif
+
+        task_release[task_req_tim]=1;
+
         if ( task_id != prev_task_id ) 
         {
             phase[task_id]    = task_req_tim;
@@ -198,31 +214,28 @@ int main ( int argc, char *argv[] )
 #endif
 
     log_once(NULL,"===============================================================\n");
-    log_once(NULL,"            Working on Ultilization %f       \n",p_util);
+    log_once(NULL,"            Working on Ultilization %.5f       \n",p_util);
     log_once(NULL,"===============================================================\n");
 
     fclose ( p_cfp );
     if ( p_util > UTIL_UPPERBOUND ) 
     {
-        log_once(NULL,"Cannot execute tasks over %2f%% utilization\nCurrent ultilization: %2f%%\n",UTIL_UPPERBOUND*100,p_util);
-        printf ( "Cannot execute tasks over %2f%% utilization\nCurrent ultilization: %2f%%\n",UTIL_UPPERBOUND,p_util);
+        log_once(NULL,"Cannot execute tasks over %2.2f%% utilization\nCurrent ultilization: %2.2f%%\n",UTIL_UPPERBOUND*100,p_util);
+        printf ( "Cannot execute tasks over %2.2f%% utilization\nCurrent ultilization: %2.2f%%\n",UTIL_UPPERBOUND,p_util);
         return 0;
     }
 
 /***************************************************************/
-// All periodic tasks ordered by deadline, this means it use EDF algorithm,
 // All aperiodic tasks oredered by when it comes.
 /***************************************************************/
 
-/****************************************************************************************************************/
-/* RM                                                                                                          */
-/****************************************************************************************************************/
 #ifdef RM
 
     log_once(NULL,"RN\n");
     
     run_simulation("RM",RM_sa);
   
+    fprintf(migration_fp,     ", %llu", migration);
     fprintf(ovhd_dl_max_fp,   ", %llu", overhead_dl_max );
     fprintf(ovhd_dl_total_fp, ", %llu", overhead_dl_total );
     fprintf(ovhd_al_max_fp,   ", %llu", overhead_alpha_max );
@@ -231,10 +244,11 @@ int main ( int argc, char *argv[] )
 
 #else
     
-    fprintf(ovhd_dl_max_fp, "," );
-    fprintf(ovhd_dl_total_fp, "," );
-    fprintf(ovhd_al_max_fp, "," );
-    fprintf(ovhd_al_total_fp, "," );
+    fprintf(migration_fp      , "," );
+    fprintf(ovhd_dl_max_fp    , "," );
+    fprintf(ovhd_dl_total_fp  , "," );
+    fprintf(ovhd_al_max_fp    , "," );
+    fprintf(ovhd_al_total_fp  , "," );
 
 #endif
 
@@ -243,6 +257,7 @@ int main ( int argc, char *argv[] )
 
     run_simulation("LSF",LSF_sa);
     
+    fprintf(migration_fp,     ", %llu", migration);
     fprintf(ovhd_dl_max_fp,   ", %llu", overhead_dl_max );
     fprintf(ovhd_dl_total_fp, ", %llu", overhead_dl_total );
     fprintf(ovhd_al_max_fp,   ", %llu", overhead_alpha_max );
@@ -251,6 +266,7 @@ int main ( int argc, char *argv[] )
 
 #else
     
+    fprintf(migration_fp    , "," );
     fprintf(ovhd_dl_max_fp  , "," );
     fprintf(ovhd_dl_total_fp, "," );
     fprintf(ovhd_al_max_fp  , "," );
@@ -263,12 +279,14 @@ int main ( int argc, char *argv[] )
 
     run_simulation("EDF",EDF_sa);
 
+    fprintf(migration_fp,     ", %llu", migration);
     fprintf(ovhd_dl_max_fp,   ", %llu", overhead_dl_max );
     fprintf(ovhd_dl_total_fp, ", %llu", overhead_dl_total );
     fprintf(ovhd_al_max_fp,   ", %llu", overhead_alpha_max );
     fprintf(ovhd_al_total_fp, ", %llu", overhead_alpha_total );
 #else
     
+    fprintf(migration_fp    , "," );
     fprintf(ovhd_dl_max_fp  , "," );
     fprintf(ovhd_dl_total_fp, "," );
     fprintf(ovhd_al_max_fp  , "," );
@@ -280,12 +298,14 @@ int main ( int argc, char *argv[] )
 
     run_simulation(LLREF_sa.name,LLREF_sa);
   
+    fprintf(migration_fp,     ", %llu", migration);
     fprintf(ovhd_dl_max_fp,   ", %llu", overhead_dl_max );
     fprintf(ovhd_dl_total_fp, ", %llu", overhead_dl_total );
     fprintf(ovhd_al_max_fp,   ", %llu", overhead_alpha_max );
     fprintf(ovhd_al_total_fp, ", %llu", overhead_alpha_total );
 #else    
 
+    fprintf(migration_fp    , "," );
     fprintf(ovhd_dl_max_fp  , "," );
     fprintf(ovhd_dl_total_fp, "," );
     fprintf(ovhd_al_max_fp  , "," );
@@ -297,18 +317,40 @@ int main ( int argc, char *argv[] )
 
     run_simulation(RUN_sa.name,RUN_sa);
   
+    fprintf(migration_fp,     ", %llu", migration);
     fprintf(ovhd_dl_max_fp,   ", %llu", overhead_dl_max );
     fprintf(ovhd_dl_total_fp, ", %llu", overhead_dl_total );
     fprintf(ovhd_al_max_fp,   ", %llu", overhead_alpha_max );
     fprintf(ovhd_al_total_fp, ", %llu", overhead_alpha_total );
 #else    
 
+    fprintf(migration_fp    , "," );
     fprintf(ovhd_dl_max_fp  , "," );
     fprintf(ovhd_dl_total_fp, "," );
     fprintf(ovhd_al_max_fp  , "," );
     fprintf(ovhd_al_total_fp, "," );
 #endif
 
+#ifdef HEDF
+    log_once(NULL,"%s\n",HEDF_sa.name);
+
+    run_simulation(HEDF_sa.name,HEDF_sa);
+  
+    fprintf(migration_fp,     ", %llu", migration);
+    fprintf(ovhd_dl_max_fp,   ", %llu", overhead_dl_max );
+    fprintf(ovhd_dl_total_fp, ", %llu", overhead_dl_total );
+    fprintf(ovhd_al_max_fp,   ", %llu", overhead_alpha_max );
+    fprintf(ovhd_al_total_fp, ", %llu", overhead_alpha_total );
+#else    
+
+    fprintf(migration_fp    , "," );
+    fprintf(ovhd_dl_max_fp  , "," );
+    fprintf(ovhd_dl_total_fp, "," );
+    fprintf(ovhd_al_max_fp  , "," );
+    fprintf(ovhd_al_total_fp, "," );
+#endif
+
+    fclose(migration_fp );
     fclose(ovhd_dl_max_fp );
     fclose(ovhd_dl_total_fp );
     fclose(ovhd_al_max_fp );
@@ -529,6 +571,7 @@ void Initialize ( void )
         exec_times[i] = 0;
         inst_no[i]    = 0;
         job_util[i]   = 0.0;
+        task_assignment_history[i] = -1;
     }
 
     p_ready_queue    = NULL;
@@ -607,12 +650,12 @@ void Overhead_Record ( void )
 
     if(overhead_dl_max < overhead_dl)
     {
-		overhead_dl_max = overhead_dl;
+        overhead_dl_max = overhead_dl;
     }
   
     if(overhead_alpha_max < overhead_alpha)
     {
-    	overhead_alpha_max = overhead_alpha;
+        overhead_alpha_max = overhead_alpha;
     }
 
     overhead_dl_total    += overhead_dl;
@@ -700,6 +743,6 @@ void TCB_list_print(TCB* TCB_list)
 
     for(tcb=TCB_list;tcb;tcb=tcb->next)
     {
-        log_once(NULL,"job: %p\t%d\t%u\t%llu\t%p\n",tcb,tcb->tid,tcb->et,tcb->a_dl,tcb->something_else);
+        log_c("job: %p\t%d\t%u\t%llu\t%p\n",tcb,tcb->tid,tcb->et,tcb->a_dl,tcb->something_else);
     }
 }
