@@ -27,8 +27,8 @@ typedef struct scb
 // This is a container for a TCb block
 typedef struct tcb_cntnr
 {
-	TCB*              tcb;
-	struct tcb_cntnr* next;
+    TCB*              tcb;
+    struct tcb_cntnr* next;
 }TCB_CNTNR;
 
 //This struct meant to build a server list

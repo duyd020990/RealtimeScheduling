@@ -49,12 +49,12 @@ void segfault_handler(int signal,siginfo_t* si,void* arg)
     
     switch(si->si_code)
     {
-    	case SEGV_MAPERR:
-    		fprintf(stderr,"\tAddress not mapped %p\n",si->si_addr);
-    	break;
-    	case SEGV_ACCERR:
-    		fprintf(stderr,"\tInvalid permission %p\n",si->si_addr);
-    	break;
+        case SEGV_MAPERR:
+            fprintf(stderr,"\tAddress not mapped %p\n",si->si_addr);
+        break;
+        case SEGV_ACCERR:
+            fprintf(stderr,"\tInvalid permission %p\n",si->si_addr);
+        break;
     }
 
     pause();

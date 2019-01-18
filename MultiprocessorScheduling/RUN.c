@@ -87,11 +87,11 @@ void SCB_list_print(SCB** scb_list)
     for(scb = *scb_list,i=0;scb;scb = scb->next,i++)
     {
         log_c("%p\t%d\t%f\t%f\t%llu\t%p\n",scb              ,
-                                                      i                ,
-                                                      scb->et          ,
-                                                      scb->ultilization,
-                                                      scb->a_dl        ,
-                                                      scb->leaf        );
+                                           i                ,
+                                           scb->et          ,
+                                           scb->ultilization,
+                                           scb->a_dl        ,
+                                           scb->leaf        );
     }
 }
 
@@ -114,10 +114,10 @@ void SCB_reduction_tree_print(SCB** SCB_node,int level,int index)
             else
             {
                 log_c("%p\ttid:%d\ttet:%u\tset:%f\tdl:%llu\n",scb,
-                                                  tcb->tid,
-                                                  tcb->et,
-                                                  scb->et,
-                                                  scb->a_dl);         // display job information
+                                                              tcb->tid,
+                                                              tcb->et,
+                                                              scb->et,
+                                                              scb->a_dl);         // display job information
             }
             SCB_reduction_tree_print(&(scb->next),level,index+1);
         break;
@@ -766,8 +766,8 @@ int SCB_reduction_tree_node_update(SCB* SCB_node)
             if(updated)
             {
                 overhead_dl += FADD+FMUL;
-            	SCB_node->a_dl = earliest_dl;
-            	SCB_node->r_dl = earliest_dl - tick;
+                SCB_node->a_dl = earliest_dl;
+                SCB_node->r_dl = earliest_dl - tick;
                 SCB_node->et   = my_round(SCB_node->ultilization * SCB_node->r_dl + SCB_node->et);
             }
             return updated;

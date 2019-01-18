@@ -24,15 +24,14 @@ extern TCB* ap_ready_queue;
 extern unsigned long long period[MAX_TASKS];
 extern unsigned long long tick;
 extern unsigned wcet[MAX_TASKS];
+extern int task_release[TICKS];
 
 extern int has_new_task;
 extern int has_new_instance;
 extern int has_task_finished;
-//extern int has_task_missed;
 
 extern unsigned long long overhead_dl;
 
-int release_time[TICKS];
 int assign_history[MAX_TASKS];
 
 unsigned long long time_interval;
@@ -59,7 +58,7 @@ unsigned long long next_release_time()
 {
     unsigned long long tick_tmp = 0;
 
-    for(tick_tmp = tick+1;!release_time[tick_tmp];tick_tmp++)
+    for(tick_tmp = tick+1;!task_release[tick_tmp];tick_tmp++)
     {
         overhead_dl += IADD + MEM;
     }
@@ -311,7 +310,7 @@ void LLREF_reorganize_function(TCB** rq)
     if(rq == NULL || *rq == NULL){return;}
 
     // Check the first event : new task released
-    if(!release_time[tick]) 
+    if(!task_release[tick]) 
     {
         //no new task released, check second event : boundry hitting event
         if(!LLREF_check_Second_Event(rq))
@@ -349,7 +348,10 @@ void LLREF_reorganize_function(TCB** rq)
             else
             {
                 ll->r_wcet = p->et;
-                ll->local_remaining_execution_time = local_remaining_execution_time(p->wcet,time_interval,period[p->tid],ll->local_remaining_execution_time);
+                ll->local_remaining_execution_time = local_remaining_execution_time(p->wcet,
+                                                                                    time_interval,
+                                                                                    period[p->tid],
+                                                                                    ll->local_remaining_execution_time);
             }
         }
     }
@@ -427,7 +429,7 @@ void LLREF_scheduling()
                 if(!assigned[i]){break;}
             }
             overhead_dl += COMP;
-            if((0<=i) && (i<PROCESSOR_NUM)){processor_id = i;}
+            if((0 <= i) && (i<PROCESSOR_NUM)){processor_id = i;}
             else{break;}
         }
         assign_history[p->tid] = processor_id;

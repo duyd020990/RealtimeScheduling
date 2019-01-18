@@ -62,12 +62,12 @@ void ILSF_sort_ready_queue(TCB **rq)
     {
         for(q=p->next;q!=NULL;q=q->next)
         {
-        	if(LAXITY(p)>LAXITY(q))
+            if(LAXITY(p)>LAXITY(q))
             {
-            	if(LAXITY(q)<THRESHOLD)
-            	{
+                if(LAXITY(q)<THRESHOLD)
+                {
                     ILSF_swap(p,q);
-            	}
+                }
             }
         }
     }

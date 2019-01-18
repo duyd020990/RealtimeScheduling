@@ -260,7 +260,7 @@ TCB_CNTNR* UEDF_execution_queue_remove(TCB_CNTNR* tc,int processor_id)
 
 void UEDF_execution_queue_destory()
 {    
-	int i;
+    int i;
     TCB_CNTNR*  tc         = NULL;
     TCB_CNTNR** tc_pointer = NULL;
 
