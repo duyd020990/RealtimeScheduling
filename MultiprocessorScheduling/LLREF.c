@@ -240,7 +240,7 @@ int LLREF_check_Second_Event(TCB** rq)
 #ifdef DEBUG
         log_c("tid lrect exhausted %llu\t%d\t%.20f\n",tick,_kernel_runtsk[i]->tid,lrect);
 #endif
-        if(lrect<(double)0 || IS_EQUAL(lrect,(double)0))
+        if((lrect <= 0.5) || IS_EQUAL(lrect,(double)0))
         {
 #ifdef DEBUG
             log_c("tid lrect exhausted %d\n",_kernel_runtsk[i]->tid);
@@ -265,7 +265,7 @@ int LLREF_check_Second_Event(TCB** rq)
 
         //The Event C in second Event
         overhead_dl += COMP;
-        if((unsigned long long)lrect >= rest_time_interval)
+        if(lrect >= (double)rest_time_interval)
         {
 #ifdef DEBUG
             log_once(NULL,"tid %d hit the bound\n",p->tid);
